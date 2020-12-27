@@ -1,0 +1,3 @@
+[submodule "libraries/eigen"]
+	path = libraries/eigen
+	url = https://github.com/fdcl-gwu/eigen.git
