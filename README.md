@@ -1,0 +1,1 @@
+sudo apt-get install python-gtk2-dev

@@ -4,7 +4,12 @@ from control import Control
 import datetime
 import numpy as np
 import pdb
+import rospy
 
+from geometry_msgs.msg import Pose, Twist, Wrench
+from geometry_msgs.msg import Vector3, Point, Quaternion
+from gazebo_msgs.msg import ModelState 
+from gazebo_msgs.srv import SetModelState
 from sensor_msgs.msg import Imu
 from std_msgs.msg import String
 
@@ -12,8 +17,17 @@ from std_msgs.msg import String
 class Rover:
     def __init__(self):
 
+        self.on = True
+        self.motor_on = False
+        self.save_on = False
+        self.mode = 0
+
         self.t0 = datetime.datetime.now()
         self.t = 0.0
+        self.freq_imu = 0.0
+        self.freq_gps = 0.0
+        self.freq_control = 0.0
+        self.freq_log = 0.0
 
         self.x = np.zeros(3)
         self.v = np.zeros(3)
@@ -54,7 +68,7 @@ class Rover:
    
     
     def run_controller(self):
-
+        self.update_current_time()
         fM = self.control.run(self.x, self.v, self.a, self.R, self.W)
         return fM
 
@@ -102,4 +116,25 @@ class Rover:
 
         self.gps_correction(x_g, v_g)
 
+
+
+def reset_uav():
+    rospy.wait_for_service('/gazebo/set_model_state')
     
+    init_position = Point(x=0.0, y=0.0, z=0.2)
+    init_attitude = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+    init_pose = Pose(position=init_position, orientation=init_attitude)
+
+    zero_motion = Vector3(x=0.0, y=0.0, z=0.0)
+    init_velocity = Twist(linear=zero_motion, angular=zero_motion)
+
+    model_state = ModelState(model_name='uav', reference_frame='world', \
+        pose=init_pose, twist=init_velocity)
+    
+    reset_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
+    reset_state(model_state)
+
+    print('Resetting UAV successful ..')
+
+
+rover = Rover()
