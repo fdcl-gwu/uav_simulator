@@ -1,6 +1,7 @@
 from rover import rover
 
 import gi
+import numpy as np
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Gdk
@@ -91,13 +92,15 @@ class Gui():
         if widget.get_active():
             print('GUI: mode switched to {}'.format(self.modes[num]))
             rover.mode = num
+            rover.x_offset = np.zeros(3)
+            rover.yaw_offset = 0.0
 
 
     def on_key_press(self, widget, event):
         key = event.keyval
         
         x_step = 0.1
-        yaw_step = 0.1
+        yaw_step = 0.02
         
         if key == Gdk.KEY_M or  key == Gdk.KEY_m:
             print('GUI: turning motors off')
@@ -105,16 +108,28 @@ class Gui():
             self.tgl_motor_on.set_active(False)
         elif key == Gdk.KEY_0:
             self.rdo_mode[0].set_active(True)
+            rover.x_offset = np.zeros(3)
+            rover.yaw_offset = 0.0
         elif key == Gdk.KEY_1:
             self.rdo_mode[1].set_active(True)
+            rover.x_offset = np.zeros(3)
+            rover.yaw_offset = 0.0
         elif key == Gdk.KEY_2:
             self.rdo_mode[2].set_active(True)
+            rover.x_offset = np.zeros(3)
+            rover.yaw_offset = 0.0
         elif key == Gdk.KEY_3:
             self.rdo_mode[3].set_active(True)
+            rover.x_offset = np.zeros(3)
+            rover.yaw_offset = 0.0
         elif key == Gdk.KEY_4:
             self.rdo_mode[4].set_active(True)
+            rover.x_offset = np.zeros(3)
+            rover.yaw_offset = 0.0
         elif key == Gdk.KEY_5:
             self.rdo_mode[5].set_active(True)
+            rover.x_offset = np.zeros(3)
+            rover.yaw_offset = 0.0
         elif key == Gdk.KEY_W or key == Gdk.KEY_w:
             rover.x_offset[0] += x_step
         elif key == Gdk.KEY_S or key == Gdk.KEY_s:

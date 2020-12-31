@@ -66,9 +66,10 @@ class Trajectory:
         self.e1 = np.array([1.0, 0.0, 0.0])
 
 
-    def get_desired(self, mode, states):
-        self.x, self.v, self.a, self.R, self.W, \
-            self.x_offset, self.yaw_offset = states
+    def get_desired(self, mode, states, x_offset, yaw_offset):
+        self.x, self.v, self.a, self.R, self.W = states
+        self.x_offset = x_offset
+        self.yaw_offset = yaw_offset
 
         if mode == self.mode:
             self.is_mode_changed = False
@@ -89,8 +90,9 @@ class Trajectory:
             self.manual()
             return
         
-        if self.mode == 0 or self.mode == 1:  # idke and warm-up
+        if self.mode == 0 or self.mode == 1:  # idle and warm-up
             self.set_desired_states_to_zero()
+            self.mark_traj_start()
         elif self.mode == 2:  # take-off
             self.takeoff()
         elif self.mode == 3:  # land
@@ -238,13 +240,12 @@ class Trajectory:
             self.trajectory_started = True
 
         self.update_current_time()
-        # print(self.t)
 
         if self.t < self.t_traj:
             self.xd[2] = self.x_init[2] + self.landing_velocity * self.t
-            self.xd_2dot[2] = self.takeoff_velocity
+            self.xd_2dot[2] = self.landing_velocity
         else:
-            if self.xd[2] > self.landing_motor_cutoff_height - 0.05:
+            if self.x[2] > self.landing_motor_cutoff_height:
                 self.xd[2] = self.landing_motor_cutoff_height
                 self.xd_dot[2] = 0.0
 
@@ -253,6 +254,9 @@ class Trajectory:
 
                 self.mark_traj_end(False)
                 self.is_landed = True
+            else:
+                self.xd[2] = self.landing_motor_cutoff_height
+                self.xd_dot[2] = self.landing_velocity
 
             
     def stay(self):

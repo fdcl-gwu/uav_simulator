@@ -118,7 +118,7 @@ class Control:
         self.sat_sigma = 1.8
 
     def run(self, states, desired):
-        self.x, self.v, self.a, self.R, self.W, _, _  = states
+        self.x, self.v, self.a, self.R, self.W = states
         self.xd, self.xd_dot, self.xd_2dot, self.xd_3dot, self.xd_4dot, \
             self.b1d, self.b1d_dot, self.b1d_2dot, is_landed = desired
 

@@ -57,3 +57,25 @@ def saturate(x, x_min,  x_max):
             x[i] = x_min
     
     return x
+
+
+def expm_SO3(r):
+    theta = np.linalg.norm(r)
+
+    y = sinx_over_x(theta)
+    y2 = sinx_over_x(theta / 2)
+
+    R = np.eye(3) + y * hat(r) + 0.5 * y2**2 * hat(r)**2
+
+    return R
+
+
+def sinx_over_x(x):
+    eps = 1e-6
+    if abs(x) < eps:
+        y = - x**10 / 39916800.0 + x**8 / 362880.0 - x**6 / 5040.0 \
+            + x**4 / 120.0 - x**2 / 6.0 + 1.0
+    else:
+        y = np.sin(x) / x
+    
+    return y
