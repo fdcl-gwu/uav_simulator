@@ -1,5 +1,6 @@
 from matrix_utils import hat, vee, q_to_R
 from control import Control
+from trajectory import Trajectory
 
 import datetime
 import numpy as np
@@ -35,6 +36,9 @@ class Rover:
         self.R = np.identity(3)
         self.W = np.zeros(3)
 
+        self.x_offset = np.zeros(3)
+        self.yaw_offset = 0.0
+
         self.g = 9.81
         self.ge3 = np.array([0.0, 0.0, self.g])
 
@@ -56,6 +60,8 @@ class Rover:
         self.control = Control()
         self.control.use_integral = True  # Enable integral control
 
+        self.trajectory = Trajectory()
+
     
     def update_current_time(self):
         t_now = datetime.datetime.now()
@@ -69,7 +75,10 @@ class Rover:
     
     def run_controller(self):
         self.update_current_time()
-        fM = self.control.run(self.x, self.v, self.a, self.R, self.W)
+        states = (self.x, self.v, self.a, self.R, self.W, \
+            self.x_offset, self.yaw_offset)
+        desired = self.trajectory.get_desired(rover.mode, states)
+        fM = self.control.run(states, desired)
         return fM
 
 

@@ -32,15 +32,15 @@ class Control:
         self.xd_3dot = np.zeros(3)
         self.xd_4dot = np.zeros(3)
 
-        self.Wd = np.zeros(3)
-        self.Wd_dot = np.zeros(3)
-
-        self.Rd = np.identity(3)
-
         self.b1d = np.zeros(3)
         self.b1d[0] = 1.0
         self.b1d_dot = np.zeros(3)
         self.b1d_2dot = np.zeros(3)
+
+        self.Wd = np.zeros(3)
+        self.Wd_dot = np.zeros(3)
+
+        self.Rd = np.identity(3)
 
         self.b3d = np.zeros(3)
         self.b3d_dot = np.zeros(3)
@@ -79,8 +79,8 @@ class Control:
 
 
         # Position gains
-        self.kX = np.diag([16.0, 16.0, 16.0])  # Position gains
-        self.kV = np.diag([13.0, 13.0, 13.0])  # Velocity gains
+        self.kX = np.diag([16.0, 16.0, 20.0])  # Position gains
+        self.kV = np.diag([13.0, 13.0, 12.0])  # Velocity gains
 
 
         # Integral gains
@@ -117,14 +117,14 @@ class Control:
 
         self.sat_sigma = 1.8
 
-    
-    def run(self, x, v, a, R, W):
-        self.x = x
-        self.v = v
-        self.a = a
-        self.R = R
-        self.W = W
+    def run(self, states, desired):
+        self.x, self.v, self.a, self.R, self.W, _, _  = states
+        self.xd, self.xd_dot, self.xd_2dot, self.xd_3dot, self.xd_4dot, \
+            self.b1d, self.b1d_dot, self.b1d_2dot, is_landed = desired
 
+        if is_landed:
+            return np.zeros(4)
+            
         self.position_control()
         self.attitude_control()
 

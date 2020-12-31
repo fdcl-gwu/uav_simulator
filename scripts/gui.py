@@ -1,7 +1,6 @@
 from rover import rover
 
 import gi
-import gobject
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Gdk
@@ -97,9 +96,13 @@ class Gui():
     def on_key_press(self, widget, event):
         key = event.keyval
         
+        x_step = 0.1
+        yaw_step = 0.1
+        
         if key == Gdk.KEY_M or  key == Gdk.KEY_m:
             print('GUI: turning motors off')
             rover.motor_on = False
+            self.tgl_motor_on.set_active(False)
         elif key == Gdk.KEY_0:
             self.rdo_mode[0].set_active(True)
         elif key == Gdk.KEY_1:
@@ -112,7 +115,22 @@ class Gui():
             self.rdo_mode[4].set_active(True)
         elif key == Gdk.KEY_5:
             self.rdo_mode[5].set_active(True)
-
+        elif key == Gdk.KEY_W or key == Gdk.KEY_w:
+            rover.x_offset[0] += x_step
+        elif key == Gdk.KEY_S or key == Gdk.KEY_s:
+            rover.x_offset[0] -= x_step
+        elif key == Gdk.KEY_D or key == Gdk.KEY_d:
+            rover.x_offset[1] += x_step
+        elif key == Gdk.KEY_A or key == Gdk.KEY_a:
+            rover.x_offset[1] -= x_step
+        elif key == Gdk.KEY_L or key == Gdk.KEY_l:
+            rover.x_offset[2] += x_step
+        elif key == Gdk.KEY_P or key == Gdk.KEY_p:
+            rover.x_offset[2] -= x_step
+        elif key == Gdk.KEY_E or key == Gdk.KEY_e:
+            rover.yaw_offset += yaw_step
+        elif key == Gdk.KEY_Q or key == Gdk.KEY_q:
+            rover.yaw_offset -= yaw_step
 
 
     def update_gui(self):
