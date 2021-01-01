@@ -1,7 +1,9 @@
 from rover import rover
+from plot_utils import plot_data
 
 import gi
 import numpy as np
+import os
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Gdk
@@ -26,6 +28,9 @@ class Gui():
 
         self.tgl_save = self.builder.get_object('tgl_save')
         self.tgl_save.connect('toggled', self.on_tgl_save_toggled)
+
+        self.lbl_save = self.builder.get_object('lbl_save')
+        self.lbl_save.set_text(rover.t0.strftime('log_%Y%m%d_%H%M%S.txt'))
 
         self.btn_plot = self.builder.get_object('btn_plot')
         self.btn_plot.connect('clicked', self.on_btn_plot_clicked)
@@ -68,6 +73,8 @@ class Gui():
 
     def on_btn_plot_clicked(self, widget):
         print('GUI: generating plots ..')
+        # plot_data()
+        os.system('python plot_utils.py')
 
 
     def on_tgl_save_toggled(self, widget):
@@ -156,6 +163,8 @@ class Gui():
             'GPS = {:3.0f} Hz'.format(rover.freq_gps))
         self.lbl_freq_control.set_text(
             'CTRL = {:3.0f} Hz'.format(rover.freq_control))
+        self.lbl_freq_log.set_text(
+            'LOG = {:3.0f} Hz'.format(rover.freq_log))
 
         self.update_vbox(self.x, rover.x)
         self.update_vbox(self.v, rover.v)
