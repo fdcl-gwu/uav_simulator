@@ -5,6 +5,46 @@ import numpy as np
 
 
 class Estimator:
+    """Estimates the states of the UAV.
+
+    This uses the estimator defined in "Real-time Kinematics GPS Based 
+    Telemetry System for Airborne Measurements of Ship Air Wake", but without
+    the bias estimation terms.
+    DOI: 10.2514/6.2019-2377
+
+    x (3x1 numpy array) current position of the UAV [m]
+    x: (3x1 numpy array) current position of the UAV [m]
+    v: (3x1 numpy array) current velocity of the UAV [m/s]
+    a: (3x1 numpy array) current acceleration of the UAV [m/s^s]
+    b_a: (float) accelerometer bias in e3 direction [m/s^2]
+    R: (3x3 numpy array) current attitude of the UAV in SO(3)
+    W: (3x1 numpy array) current angular velocity of the UAV [rad/s]
+    
+    Q: (7x7 numpy array) variances of w_k
+    P: (10x10 numpy array) covariances of the states
+
+    t0: (datetime object) time at epoch
+    t: (float) current time since epoch [s]
+    t_prev: (float) time since epoch in the previous loop [s]
+
+    W_pre: (3x1 numpy array) angular velocity of the previous loop [rad/s]
+    a_imu_pre: (3x1 numpy array) acceleration of the previous loop [m/s^2]
+    R_pre: (3x3 numpy array) attitude in the previous loop in SO(3)
+    b_a_pre: (3x1 numpy array) accelerometer bias in the previous loop [m/s^2]
+
+    g: (float) gravitational acceleration [m/s^2]
+    ge3: (3x1 numpy array) gravitational acceleration direction [m/s^2]
+
+    R_bi: (3x3 numpy array) transformation from IMU frame to the body frame
+    R_bi_T: (3x3 numpy array) transformation from IMU frame to the body frame
+
+    e3 : (3x1 numpy array) direction of the e3 axis
+    eye3: (3x3 numpy array) 3x3 identity matrix
+    eye10: (10x10 numpy array) 10x10 identity matrix
+
+    zero3: (3x3 numpy array) 3x3 zero matrix
+    """
+
     def __init__(self):
         self.x = np.zeros(3)
         self.v = np.zeros(3)
@@ -56,6 +96,13 @@ class Estimator:
 
 
     def prediction(self, a_imu, W_imu):
+        """Prediction step of the estimator.
+
+        Args:
+            a_imu: (3x1 numpy array) acceleration measured by the IMU [m/s^2]
+            W_imu: (3x1 numpy array) angular rate measured by the IMU [rad/s]
+        """
+
         h = self.get_dt()
 
         self.R_pre = np.copy(self.R)
@@ -98,6 +145,13 @@ class Estimator:
 
 
     def imu_correction(self, R_imu, V_R_imu):
+        """IMU correction step of the estimator.
+
+        Args:
+            R_imu: (3x3 numpy array) attitude measured by the IMU in SO(3)
+            V_R_imu: (3x3 numpy array) attitude measurement covariance
+        """
+
         imu_R = self.R.T.dot(R_imu).dot(self.R_bi_T)
         del_z = 0.5 * vee(imu_R - imu_R.T)
 
@@ -123,6 +177,15 @@ class Estimator:
 
 
     def gps_correction(self, x_gps, v_gps, V_x_gps, V_v_gps):
+        """GPS correction step of the estimator.
+
+        Args:
+            x_gps: (3x1 numpy array) position measured by the GPS [m]
+            v_gps: (3x1 numpy array) velocity measured by the GPS [m]
+            V_x_gps: (3x1 numpy array) position measurement covariance
+            V_v_gps: (3x1 numpy array) velocity measurement covariance
+        """
+
         del_z = np.hstack((x_gps - self.x, v_gps - self.v))
 
         H = np.block([
@@ -154,6 +217,12 @@ class Estimator:
 
     
     def get_dt(self):
+        """Get the time difference between two loops.
+
+        Return:
+            dt: (float) time difference between two loops
+        """
+
         self.t_pre = self.t * 1.0
         t_now = datetime.datetime.now()
         self.t = (t_now - self.t0).total_seconds()
@@ -162,4 +231,13 @@ class Estimator:
 
 
     def get_states(self):
+        """Return the current states of the estimator.
+
+        Return:
+            x: (3x1 numpy array) current position of the UAV [m]
+            v: (3x1 numpy array) current velocity of the UAV [m/s]
+            a: (3x1 numpy array) current acceleration of the UAV [m/s^s]
+            R: (3x3 numpy array) current attitude of the UAV in SO(3)
+            W: (3x1 numpy array) current angular velocity of the UAV [rad/s]
+        """
         return (self.x, self.v, self.a, self.R, self.W)
