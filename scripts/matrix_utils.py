@@ -1,6 +1,7 @@
 import numpy as np
 import pdb
 
+
 def hat(x):
     """Returns the hat map of a given 3x1 vector.
 
@@ -11,7 +12,8 @@ def hat(x):
         x_hat: (3x3 numpy array) hat of the input vector
     """
     
-    x = x.reshape((3, 1))
+    x = x.reshape((3, 1))  # You may have to uncomment this line depending on
+        # your NumPy version.
     x_hat = np.array([
         [0.0, -x[2], x[1]],
         [x[2], 0.0, -x[0]],

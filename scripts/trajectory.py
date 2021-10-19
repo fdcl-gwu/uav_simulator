@@ -204,6 +204,12 @@ class Trajectory:
     def takeoff(self):
         if not self.trajectory_started:
             self.set_desired_states_to_zero()
+
+            # Take-off starts from the current horizontal position.
+            self.xd[0] = self.x[0]
+            self.xd[1] = self.x[1]
+            self.x_init = self.x
+
             self.t_traj = (self.takeoff_end_height - self.x[2]) / \
                 self.takeoff_velocity
 

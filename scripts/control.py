@@ -166,7 +166,7 @@ class Control:
 
         # Position gains
         self.kX = np.diag([16.0, 16.0, 20.0])  # Position gains
-        self.kV = np.diag([13.0, 13.0, 12.0])  # Velocity gains
+        self.kV = np.diag([12.0, 12.0, 12.0])  # Velocity gains
 
         # Integral gains
         self.kIR = 0.015  # Attitude integral gain
