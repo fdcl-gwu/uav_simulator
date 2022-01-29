@@ -110,15 +110,15 @@ class Estimator:
         self.b_a_pre = self.b_a * 1.0
 
         self.W = self.R_bi.dot(W_imu)
-        self.R = self.R.dot(expm_SO3(h / 2 * (self.W + self.W_pre)))
+        self.R = self.R.dot(expm_SO3(h / 2.0 * (self.W + self.W_pre)))
 
         # This assumes IMU provide acceleration without g
         self.a = self.R.dot(self.R_bi).dot(a_imu) + self.b_a * self.e3
         a_pre = self.R_pre.dot(self.R_bi).dot(self.a_imu_pre) \
             + self.b_a_pre * self.e3
 
-        self.x = self.x + h * self.v + h**2 / 2 * a_pre
-        self.v = self.v + h / 2 * (self.a + a_pre)
+        self.x = self.x + h * self.v + h**2 / 2.0 * a_pre
+        self.v = self.v + h / 2.0 * (self.a + a_pre)
 
         # Calculate A(t_{k-1})
         A = np.zeros((10, 10))
@@ -134,7 +134,7 @@ class Estimator:
         F[9, 6] = 1.0
 
         # Calculate \Psi using A(t)
-        psi = self.eye10 + h / 2 * A
+        psi = self.eye10 + h / 2.0 * A
 
         A = self.eye10 + h * A.dot(psi)
         F = h * psi.dot(F)
