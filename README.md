@@ -1,6 +1,6 @@
-# Python - Gazebo Simulation Environment for a UAV with Geometric Control
-
 [![Build Status](https://app.travis-ci.com/fdcl-gwu/uav_simulator.svg?branch=main)](https://app.travis-ci.com/fdcl-gwu/uav_simulator)
+
+# Python - Gazebo Simulation Environment for a UAV with Geometric Control
 
 This repository include Python codes for the position control a UAV in a Gazebo simulation environment, using [geometric controllers](https://github.com/fdcl-gwu/uav_geometric_control).
 
