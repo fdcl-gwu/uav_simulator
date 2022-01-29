@@ -1,5 +1,7 @@
 # Python - Gazebo Simulation Environment for a UAV with Geometric Control
 
+[![Build Status](https://app.travis-ci.com/fdcl-gwu/uav_simulator.svg?branch=main)](https://app.travis-ci.com/fdcl-gwu/uav_simulator)
+
 This repository include Python codes for the position control a UAV in a Gazebo simulation environment, using [geometric controllers](https://github.com/fdcl-gwu/uav_geometric_control).
 
 ## Features
@@ -17,7 +19,7 @@ This repository include Python codes for the position control a UAV in a Gazebo 
 * Python makes developing/debugging easier and shorter (no compiling)
 * Can easily find modules or libraries for different tasks
 
-### Which controller is used for the UAV control?
+## Which controller is used for the UAV control?
 * A geometric controller with decouppled-yaw attitude control is used
 * The controller is published in:
     ```sh
@@ -37,7 +39,7 @@ This repository include Python codes for the position control a UAV in a Gazebo 
 * Simply update the `Controller` class with your controller.
 * Make sure your modified controller class outputs the variable force-moment vector (`fM`).
 
-### Which estimator is used for the state estimation?
+## Which estimator is used for the state estimation?
 * The estimator defined in the following paper is implemented here (except the sensor bias estimation terms):
     ```sh
     @InProceedings{Gamagedara2019a,
@@ -114,3 +116,20 @@ You only need to do the followings once (unless you change the Gazebo plugins)
 1. Everytime you change the simulation environment, you have to kill the program, `catkin_make` and re-run it. 
 1. If you do not make any changes to the simulation environment, you only need to kill the Python program. 
 1. The UAV will re-spawn at the position and orientation defined in `reset_uav()` in `rover.py` when you run the Python code.
+
+## Control Guide
+* Simply click on the buttons on the GUI to control the UAV.
+* You can easily switch between each trajectory mode simply clicking on the radio buttons.
+* Stay mode simply commands the UAV to stay at the current position.
+* When take-off, stay, and circle trajectories end, the UAV switched to the "manual" mode.
+* When the UAV is in manual, you can use following keys (these are not case sensitive):
+  * `WASD`: to move in horizontal plane
+  * `P`: increase altitiude
+  * `L`: decrease altitude
+  * `Q`: yaw rotation in anti-clockwise direction
+  * `E`: yaw rotation in clockwise direction
+* At any point of the flight, you can use following keys (these are not case sensitive):
+  * `M`: kill motors
+  * `0-5`: set the flight mode without clicking on the GUI
+* Please not that the GUI must be in focus for any of the above keys to work.
+* If you want to change the above keyboard shortcuts, you can do so by editing `on_key_press` function in `gui.py`.
