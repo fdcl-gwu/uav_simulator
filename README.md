@@ -133,3 +133,9 @@ You only need to do the followings once (unless you change the Gazebo plugins)
   * `0-5`: set the flight mode without clicking on the GUI
 * Please not that the GUI must be in focus for any of the above keys to work.
 * If you want to change the above keyboard shortcuts, you can do so by editing `on_key_press` function in `gui.py`.
+
+## Running Unit-Tests
+* Make sure you are in the main directory.
+* Run `python -m unittest`.
+* Unit tests have only been tested on Python 3.9.
+* Currently, unit test only covers the `matrix_utils.py` module. 
