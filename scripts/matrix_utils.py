@@ -219,9 +219,7 @@ def ensure_skew(x, n):
     """
     ensure_matrix(x, n, n)
     
-    xT = x.T
-
-    if not np.array_equal(xT, -x):
+    if not np.allclose(x.T, -x):
         raise ValueError('Input array must be a skew-symmetric matrix')
     
     return True
