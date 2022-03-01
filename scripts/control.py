@@ -280,58 +280,66 @@ class Control:
 
         # Force 'f' along negative b3-axis - eq (14)
         # This term equals to R.e3
-        A = - kX.dot(eX) \
-            - kV.dot(eV) \
+        A = - kX @ eX \
+            - kV @ eV \
             - kIX * self.eIX.error \
             - m * g * e3 \
             + m * xd_2dot
 
-        b3 = R.dot(e3)
-        b3_dot = R.dot(hat(W)).dot(e3)  # eq (22)
-        f_total = -A.dot(b3)
+        hatW = hat(W)
+
+        b3 = R @ e3
+        b3_dot = R @ hatW @ e3  # eq (22)
+        f_total = -A @ b3
 
         # Intermediate terms for rotational errors
         ea = g * e3 \
             - f_total / m * b3 \
             - xd_2dot
-        A_dot = - kX.dot(eV) \
-            - kV.dot(ea) \
+        A_dot = - kX @ eV \
+            - kV @ ea \
             + m * xd_3dot
 
-        fdot = - A_dot.dot(b3) \
-            - A.dot(b3_dot)
+        fdot = - A_dot @ b3 \
+            - A @ b3_dot
         eb = - fdot / m * b3 \
             - f_total / m * b3_dot \
             - xd_3dot
-        A_2dot = - kX.dot(ea) \
-            - kV.dot(eb) \
+        A_2dot = - kX @ ea \
+            - kV @ eb \
             + m * xd_4dot
 
         b3c, b3c_dot, b3c_2dot = deriv_unit_vector(-A, -A_dot, -A_2dot)
 
-        A2 = -hat(b1d).dot(b3c)
-        A2_dot = - hat(b1d_dot).dot(b3c) - hat(b1d).dot(b3c_dot)
-        A2_2dot = - hat(b1d_2dot).dot(b3c) \
-            - 2.0 * hat(b1d_dot).dot(b3c_dot) \
-            - hat(b1d).dot(b3c_2dot)
+        hat_b1d = hat(b1d)
+        hat_b1d_dot = hat(b1d_dot)
+
+        A2 = -hat_b1d @ b3c
+        A2_dot = - hat_b1d_dot @ b3c - hat_b1d @ b3c_dot
+        A2_2dot = - hat(b1d_2dot) @ b3c \
+            - 2.0 * hat_b1d_dot @ b3c_dot \
+            - hat_b1d @ b3c_2dot
 
         b2c, b2c_dot, b2c_2dot = deriv_unit_vector(A2, A2_dot, A2_2dot)
 
-        b1c = hat(b2c).dot(b3c)
-        b1c_dot = hat(b2c_dot).dot(b3c) + hat(b2c).dot(b3c_dot)
-        b1c_2dot = hat(b2c_2dot).dot(b3c) \
-            + 2.0 * hat(b2c_dot).dot(b3c_dot) \
-            + hat(b2c).dot(b3c_2dot)
+        hat_b2c = hat(b2c)
+        hat_b2c_dot = hat(b2c_dot)
+
+        b1c = hat_b2c @ b3c
+        b1c_dot = hat_b2c_dot @ b3c + hat_b2c @ b3c_dot
+        b1c_2dot = hat(b2c_2dot) @ b3c \
+            + 2.0 * hat_b2c_dot @ b3c_dot \
+            + hat_b2c @ b3c_2dot
 
         Rd = np.vstack((b1c, b2c, b3c)).T
         Rd_dot = np.vstack((b1c_dot, b2c_dot, b3c_dot)).T
         Rd_2dot = np.vstack((b1c_2dot, b2c_2dot, b3c_2dot)).T
 
         Rd_T = Rd.T
-        Wd = vee(Rd_T.dot(Rd_dot))
+        Wd = vee(Rd_T @ Rd_dot)
 
         hat_Wd = hat(Wd)
-        Wd_dot = vee(Rd_T.dot(Rd_2dot) - hat_Wd.dot(hat_Wd))
+        Wd_dot = vee(Rd_T @ Rd_2dot - hat_Wd @ hat_Wd)
 
         self.f_total = f_total
         self.Rd = Rd
@@ -345,9 +353,9 @@ class Control:
 
         # Yaw
         self.b1c = b1c
-        self.wc3 = e3.dot(R_T.dot(Rd).dot(Wd))
-        self.wc3_dot = e3.dot(R_T.dot(Rd).dot(Wd_dot)) \
-            - e3.dot(hat(W).dot(R_T).dot(Rd).dot(Wd))
+        self.wc3 = e3 @ (R_T @ Rd @ Wd)
+        self.wc3_dot = e3 @ (R_T @ Rd @ Wd_dot) \
+            - e3 @ (hatW @ R_T @ Rd @ Wd)
 
 
     def attitude_control(self):
@@ -374,48 +382,48 @@ class Control:
 
         J = self.J
         
-        b1 = R.dot(self.e1)
-        b2 = R.dot(self.e2)
-        b3 = R.dot(self.e3)
+        b1 = R @ self.e1
+        b2 = R @ self.e2
+        b3 = R @ self.e3
 
         hat_b3 = hat(b3)
 
         # Roll/pitch angular velocity vector
         W_12 = W[0] * b1 + W[1] * b2
-        b3_dot = hat(W_12).dot(b3)  # eq (26)
+        b3_dot = hat(W_12) @ b3  # eq (26)
 
         hat_b3d = hat(b3d)
-        W_12d = hat_b3d.dot(b3d_dot)
-        W_12d_dot = hat_b3d.dot(b3d_2dot)
+        W_12d = hat_b3d @ b3d_dot
+        W_12d_dot = hat_b3d @ b3d_2dot
 
-        eb = hat_b3d.dot(b3)  # eq (27)
-        ew = W_12 + hat_b3.dot(hat_b3).dot(W_12d)  # eq (28)
+        eb = hat_b3d @ b3  # eq (27)
+        ew = W_12 + hat_b3 @ hat_b3 @ W_12d  # eq (28)
 
         # Yaw
-        ey = -b2.dot(self.b1c)
+        ey = -b2 @ self.b1c
         ewy = W[2] - self.wc3
 
         # Attitude integral terms
         eI = ew + self.c2 * eb
 
-        self.eI1.integrate(eI.dot(b1), self.dt)  # b1 axis - eq (29)
-        self.eI2.integrate(eI.dot(b2), self.dt)  # b2 axis - eq (30)
+        self.eI1.integrate(eI @ b1, self.dt)  # b1 axis - eq (29)
+        self.eI2.integrate(eI @ b2, self.dt)  # b2 axis - eq (30)
         self.eIy.integrate(ewy + self.c3 * ey, self.dt)
 
         # Control moment for the roll/pitch dynamics - eq (31)
         tau = -self.kR[0, 0] * eb \
             - self.kW[0, 0] * ew \
-            - J[0, 0] * b3.T.dot(W_12d) * b3_dot \
-            - J[0, 0] * hat_b3.dot(hat_b3).dot(W_12d_dot)
+            - J[0, 0] * b3.T @ W_12d * b3_dot \
+            - J[0, 0] * hat_b3 @ hat_b3 @ W_12d_dot
         if self.use_integral:
             tau += -self.kI * self.eI1.error * b1 \
                 - self.kI * self.eI2.error * b2
 
         # Control moment around b1 axis - roll - eq (24)
-        M1 = b1.T.dot(tau) + J[2, 2] * W[2] * W[1]
+        M1 = b1.T @ tau + J[2, 2] * W[2] * W[1]
 
         # Control moment around b2 axis - pitch - eq (24)
-        M2 = b2.T.dot(tau) - J[2, 2] * W[2] * W[0]
+        M2 = b2.T @ tau - J[2, 2] * W[2] * W[0]
 
         # Control moment around b3 axis - yaw - eq (52)
         M3 = - self.ky * ey \
@@ -432,14 +440,14 @@ class Control:
         for i in range(3):
             self.fM[i + 1] = M[i]
             
-        f_motor = self.fM_to_forces_inv.dot(self.fM)
+        f_motor = self.fM_to_forces_inv @ self.fM
 
         # For saving:
-        RdtR = Rd_T.dot(R)
+        RdtR = Rd_T @ R
         eR = 0.5 * vee(RdtR - RdtR.T)
         self.eIR.error = np.array([self.eI1.error, self.eI2.error, \
             self.eIy.error])
-        eW = W - R_T.dot(Rd).dot(Wd)
+        eW = W - R_T @ Rd @ Wd
 
 
     def set_integral_errors_to_zero(self):

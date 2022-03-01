@@ -106,7 +106,7 @@ You only need to do the followings once (unless you change the Gazebo plugins)
     ```
 1. Once the Gazebo is launched, run the rover code from a different rover terminal (if you already don't know, you may find [**tmux**](https://github.com/tmux/tmux/wiki) a life-saver):
     ```sh
-    python main.py
+    python3 main.py
     ```
     If you change the Python code, simply re-run the Python code
 
