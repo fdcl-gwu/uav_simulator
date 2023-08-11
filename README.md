@@ -64,6 +64,11 @@ This repository include Python codes for the position control a UAV in a Gazebo 
 * Replace that with an unused mode in the `calculate_desired` function inside the `Trajectory` class.
 
 ## Setting-up
+
+### Docker Setup
+1. `docker build -t uav_simulator .`
+1. `docker run --rm --mount source="$(pwd)",target=/home/uav_simulator,type=bind -it uav_simulator bash`
+
 ### Dependencies
 1. [ROS](http://wiki.ros.org/): this repository has been developed using ROS Melodic, on Ubuntu 18.04.
 1. Python GTK libraries for GUI (not required if you opt to not to use the GUI)
