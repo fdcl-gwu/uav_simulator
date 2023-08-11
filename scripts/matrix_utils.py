@@ -137,7 +137,7 @@ def expm_SO3(r):
     y2 = sinx_over_x(theta / 2.0)
 
     hat_r = hat(r)
-    R = np.eye(3) + y * hat_r + 0.5 * y2**2 * hat_r @ hat_r
+    R = np.eye(3) + y * hat_r + 0.5 * y2**2 * hat_r.dot(hat_r)
 
     return R
 
@@ -236,7 +236,7 @@ def ensure_SO3(x):
     """
     ensure_matrix(x, 3, 3)
     
-    if not np.array_equal(x.T @ x, np.eye(3)):
+    if not np.array_equal(x.T.dot(x), np.eye(3)):
         raise ValueError('Input array does not satisfy R^TR = I')
 
     if not abs(np.linalg.det(x)) - 1.0 < 1e-9:
