@@ -2,7 +2,7 @@
 
 # Python - Gazebo Simulation Environment for a UAV with Geometric Control
 
-This repository include Python codes for the position control a UAV in a Gazebo simulation environment, using [geometric controllers](https://github.com/fdcl-gwu/uav_geometric_control).
+This repository includes Python codes for the position control a UAV in a Gazebo simulation environment, using [geometric controllers](https://github.com/fdcl-gwu/uav_geometric_control).
 
 ## Features
 * Developed using Python
@@ -65,20 +65,22 @@ This repository include Python codes for the position control a UAV in a Gazebo 
 
 ## Setting-up
 
-### Docker Setup
-1. `docker build -t uav_simulator .`
-1. `docker run --rm --mount source="$(pwd)",target=/home/uav_simulator,type=bind -it uav_simulator bash`
+:bangbang: If you are running this on a virtual machine, please make sure that Gazebo can run at real-time speed.
+It is known that this simulation exhibits unintended behavior if the "real-time factor" of the Gazebo simulation is not closer to 1.0 (See [issue#3](https://github.com/fdcl-gwu/uav_simulator/issues/3)).
 
 ### Dependencies
-1. [ROS](http://wiki.ros.org/): this repository has been developed using ROS Melodic, on Ubuntu 18.04.
+1. [ROS](http://wiki.ros.org/): this repository has been developed using ROS Noetic, on Ubuntu 20.04. If you are on ROS Melodic with Ubuntu 18.04, please checkout `ros-melodic` branch before installing dependencies.
 1. Python GTK libraries for GUI (not required if you opt to not to use the GUI)
     ```sh
-    sudo apt-get install python-gtk2-dev
+    sudo apt-get install python3-pip python3-gi
     ```
 1. Python modules: these libraries must be installed in the system
     1. NumPy
     1. Pandas
     1. Matplotlib
+    ```sh
+    python3 -m pip install numpy pandas matplotlib
+    ```
 
 ### Setting-up the repository
 1. Clone the repositroy.
@@ -113,7 +115,8 @@ You only need to do the followings once (unless you change the Gazebo plugins)
     ```sh
     python3 main.py
     ```
-    If you change the Python code, simply re-run the Python code
+    If you change the Python code, simply re-run the Python code.
+    The code has been tested with Python3.8.10, which comes default with Ubuntu 20.04.
 
 ![Terminal](images/running.gif)
 
@@ -144,3 +147,8 @@ You only need to do the followings once (unless you change the Gazebo plugins)
 * Run `python -m unittest`.
 * Unit tests have only been tested on Python 3.9.
 * Currently, unit test only covers the `matrix_utils.py` module. 
+
+
+## Docker Setup
+1. `docker build -t uav_simulator .`
+1. `docker run --rm --mount source="$(pwd)",target=/home/uav_simulator,type=bind -it uav_simulator bash`
