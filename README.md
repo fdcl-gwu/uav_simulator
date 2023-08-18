@@ -66,7 +66,7 @@ This repository includes Python codes for the position control a UAV in a Gazebo
 ## Setting-up
 
 :bangbang: If you are running this on a virtual machine, please make sure that Gazebo can run at real-time speed.
-It is known (#3) that this simulation exhibits unintended behavior if the "real-time factor" of the Gazebo simulation is not closer to 1.0.
+It is known that this simulation exhibits unintended behavior if the "real-time factor" of the Gazebo simulation is not closer to 1.0 (See [issue#3](https://github.com/fdcl-gwu/uav_simulator/issues/3)).
 
 ### Dependencies
 1. [ROS](http://wiki.ros.org/): this repository has been developed using ROS Noetic, on Ubuntu 20.04. If you are on ROS Melodic with Ubuntu 18.04, please checkout `ros-melodic` branch before installing dependencies.
