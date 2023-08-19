@@ -218,3 +218,7 @@ def thread_gui():
 
     rover.on = False
     print('GUI: thread closed!')
+
+
+if __name__=='__main__':
+    thread_gui()
