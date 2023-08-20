@@ -74,7 +74,7 @@ class Gui():
     def on_btn_plot_clicked(self, widget):
         print('GUI: generating plots ..')
         # plot_data()
-        os.system('python plot_utils.py')
+        os.system('python3 plot_utils.py')
 
 
     def on_tgl_save_toggled(self, widget):
@@ -218,3 +218,7 @@ def thread_gui():
 
     rover.on = False
     print('GUI: thread closed!')
+
+
+if __name__=='__main__':
+    thread_gui()
