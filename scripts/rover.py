@@ -46,6 +46,9 @@ class Rover:
         self.ge3 = np.array([0.0, 0.0, self.g])
 
         # Gazebo uses ENU frame, but NED frame is used in FDCL.
+        # Note that ENU and the NED here refer to their direction order.
+        # ENU: E - axis 1, N - axis 2, U - axis 3
+        # NED: N - axis 1, E - axis 2, D - axis 3
         self.R_fg = np.array([
             [1.0, 0.0, 0.0],
             [0.0, -1.0, 0.0],
