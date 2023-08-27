@@ -1,4 +1,8 @@
-[![Build Status](https://app.travis-ci.com/fdcl-gwu/uav_simulator.svg?branch=main)](https://app.travis-ci.com/fdcl-gwu/uav_simulator)
+
+|![TravisCI](https://img.shields.io/badge/travis%20ci-%232B2F33.svg?style=for-the-badge&logo=travis&logoColor=white) | ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)|
+|-|-|
+|[![Build Status](https://app.travis-ci.com/fdcl-gwu/uav_simulator.svg?branch=main)](https://app.travis-ci.com/fdcl-gwu/uav_simulator) | [tag:ros-melodic](https://hub.docker.com/layers/kanishgama/uav_simulator/ros-melodic/images/sha256-24128f0a67a4ef27a3af518b3c6879cb436bc54a280140b6ea88c637cdec782a?context=repo) |
+
 
 # Python - Gazebo Simulation Environment for a UAV with Geometric Control
 
@@ -116,11 +120,17 @@ This has not been tested on other OS versions.
 1. Install docker following [official instructions](https://docs.docker.com/engine/install/ubuntu/).
 1. If you are not already there, `cd uav_simulator`
 1. Enable xhost (required for Gazebo and GUI): `xhost +`
-1. Build the docker image: `docker build -t uav_simulator .`
+1. Build the docker image: `docker build -t uav_simulator .` (see following paragraph if you just want to pull it instead)
 1. Run a container: `bash docker_run.sh`
 
 The last command will start a docker container, install all the dependencies, and mount the local directory there.
 The first time you run the build command will take a while as it installs all the libraries.
+
+You can skip the build command altogether by pulling the build docker from the Dokcer Hub with the following command.
+This is NOT required if you are building it locally using the build command.
+```sh
+docker pull kanishgama/uav_simulator:ros-melodic
+```
 
 After that, you only need to run the `bash docker_run.sh` every time you need to run the simulation.
 Since this mounts the local repository inside the docker, you just need to change the code in your local repository, and it will be automatically update inside the docker.
