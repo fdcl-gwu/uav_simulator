@@ -1,4 +1,6 @@
-[![Build Status](https://app.travis-ci.com/fdcl-gwu/uav_simulator.svg?branch=main)](https://app.travis-ci.com/fdcl-gwu/uav_simulator)
+|![TravisCI](https://img.shields.io/badge/travis%20ci-%232B2F33.svg?style=for-the-badge&logo=travis&logoColor=white) | ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)|
+|-|-|
+|[![Build Status](https://app.travis-ci.com/fdcl-gwu/uav_simulator.svg?branch=main)](https://app.travis-ci.com/fdcl-gwu/uav_simulator) | [tag:ros-noetic](https://hub.docker.com/layers/kanishgama/uav_simulator/ros-noetic/images/sha256-84b08eedc786c7d9ff06282816560876bb384ec52e0a7da9739e5cbd749e4d0b?context=repo) |
 
 # Python - Gazebo Simulation Environment for a UAV with Geometric Control
 
@@ -116,11 +118,18 @@ This has not been tested on other OS versions.
 1. Install docker following [official instructions](https://docs.docker.com/engine/install/ubuntu/).
 1. If you are not already there, `cd uav_simulator`
 1. Enable xhost (required for Gazebo and GUI): `xhost +`
-1. Build the docker image: `docker build -t uav_simulator .`
+1. Build the docker image: `docker build -t uav_simulator .` (see following paragraph if you just want to pull the built image instead)
 1. Run a container: `bash docker_run.sh`
 
 The last command will start a docker container, install all the dependencies, and mount the local directory there.
 The first time you run the build command will take a while as it installs all the libraries.
+
+You can skip the build command altogether by pulling the built docker from the Docker Hub with the following command.
+This is NOT required if you are building it locally using the build command.
+```sh
+docker pull kanishgama/uav_simulator:ros-noetic
+bash docker_run.sh
+```
 
 After that, you only need to run the `bash docker_run.sh` every time you need to run the simulation.
 Since this mounts the local repository inside the docker, you just need to change the code in your local repository, and it will be automatically update inside the docker.
