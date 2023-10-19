@@ -69,7 +69,7 @@ def plot_33_2(x1, y1, x2, y2, x_label='', title='', legend=['', '']):
     
     for i, j in list(itertools.product(range(0, 3), range(0, 3))):
         ax[i, j].plot(x1[:], y1[i, j, :], 'r', label=legend[0])
-        ax[i, j].plot(x2[:], y2[i, j, :], 'g', label=legend[0])
+        ax[i, j].plot(x2[:], y2[i, j, :], 'g', label=legend[1])
         ax[i, j].set_ylim((-1.2, 1.2))
         ax[i, j].grid('on')
     
