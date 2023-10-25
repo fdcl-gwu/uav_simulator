@@ -163,8 +163,17 @@ class Trajectory:
         self.theta_init = np.arctan2(self.b1_init[1], self.b1_init[0])
 
     
+    #Explanation:
+    # Takes first col from self.R, which is a 3x1 matrix corresponding to b1
+    # see Figure 2.2: or see 2.3 Reference Frames (in Geometric Control paper on drive/Skywalker/Reading_Materials)
+
+    # "In other words, the position of the UAV, x ∈ R3, is defined
+    # as the origin of the b-frame in f -frame, and the attitude of the UAV, R ≜ R_(fb) ∈ SO(3),
+    # is defined as the rotation of the b-frame with respect to the f-frame"
+
     def get_current_b1(self):
         b1 = self.R.dot(self.e1)
+        print(b1)
         theta = np.arctan2(b1[1], b1[0])
         return np.array([np.cos(theta), np.sin(theta), 0.0])
 
@@ -201,6 +210,7 @@ class Trajectory:
         self.b1d = np.array([np.cos(theta), np.sin(theta), 0.0])
 
 
+    #Explanation: see comments, and for variable meanings, see control.py
     def takeoff(self):
         if not self.trajectory_started:
             self.set_desired_states_to_zero()
@@ -210,6 +220,7 @@ class Trajectory:
             self.xd[1] = self.x[1]
             self.x_init = self.x
 
+            # t=v/d, where t=t_traj, d=takeoff_end_height, and v=takeoff_velocity
             self.t_traj = (self.takeoff_end_height - self.x[2]) / \
                 self.takeoff_velocity
 
