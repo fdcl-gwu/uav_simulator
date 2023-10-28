@@ -103,20 +103,25 @@ class Estimator:
             W_imu: (3x1 numpy array) angular rate measured by the IMU [rad/s]
         """
 
+        # Get the time difference between two loops
         h = self.get_dt()
 
+        # Save the current state estimates and accelerometer bias estimate as the previous estimates
         self.R_pre = np.copy(self.R)
         self.W_pre = np.copy(self.W)
         self.b_a_pre = self.b_a * 1.0
 
+        # Update the angular rate estimate and attitude estimate using the IMU measurements
         self.W = self.R_bi.dot(W_imu)
         self.R = self.R.dot(expm_SO3(h / 2.0 * (self.W + self.W_pre)))
 
+        # Update the acceleration estimate using the IMU measurements and the previous accelerometer bias estimate
         # This assumes IMU provide acceleration without g
         self.a = self.R.dot(self.R_bi).dot(a_imu) + self.b_a * self.e3
         a_pre = self.R_pre.dot(self.R_bi).dot(self.a_imu_pre) \
             + self.b_a_pre * self.e3
 
+        # Update the position and velocity estimates using the acceleration estimate
         self.x = self.x + h * self.v + h**2 / 2.0 * a_pre
         self.v = self.v + h / 2.0 * (self.a + a_pre)
 
@@ -136,11 +141,14 @@ class Estimator:
         # Calculate \Psi using A(t)
         psi = self.eye10 + h / 2.0 * A
 
+        # Calculate A(t_k) and F(t_k)
         A = self.eye10 + h * A.dot(psi)
         F = h * psi.dot(F)
 
+        # Update the error covariance matrix P using A(t_k) and F(t_k)
         self.P = A.dot(self.P).dot(A.T) + F.dot(self.Q).dot(F.T)
 
+        # Save the current acceleration measurement as the previous measurement
         self.a_imu_pre = a_imu
 
 
@@ -152,25 +160,31 @@ class Estimator:
             V_R_imu: (3x3 numpy array) attitude measurement covariance
         """
 
+        # Calculate the attitude error between the IMU measurement and the current attitude estimate
         imu_R = self.R.T.dot(R_imu).dot(self.R_bi_T)
         del_z = 0.5 * vee(imu_R - imu_R.T)
 
+        # Construct the measurement matrix H and its transpose
         H = np.block([self.zero3, self.zero3, self.eye3, np.zeros((3, 1))])
         H_T = H.T
 
+        # Construct the gain matrix G and its transpose
         G = self.R_bi
         G_T = G.T
 
+        # Construct the measurement covariance matrix V
         V = V_R_imu
 
+        # Calculate the innovation covariance matrix S, the Kalman gain K, and the state correction X
         S = H.dot(self.P).dot(H_T) + G.dot(V).dot(G_T)
         K = self.P.dot(H_T).dot(np.linalg.inv(S))
-
         X = K.dot(del_z)
 
+        # Extract the attitude correction from X and update the attitude estimate
         eta = X[6:9]
         self.R = self.R.dot(expm_SO3(eta))
 
+        # Update the error covariance matrix P using the Kalman gain
         I_KH = self.eye10 - K.dot(H)
         self.P = I_KH.dot(self.P).dot(I_KH.T) \
             + K.dot(G).dot(V).dot(G_T).dot(K.T)
@@ -186,32 +200,38 @@ class Estimator:
             V_v_gps: (3x1 numpy array) velocity measurement covariance
         """
 
+        # Calculate the difference between the GPS measurements and the current state estimates
         del_z = np.hstack((x_gps - self.x, v_gps - self.v))
 
+        # Construct the measurement matrix H and its transpose
         H = np.block([
             [self.eye3, self.zero3, self.zero3, np.zeros((3, 1))],
             [self.zero3, self.eye3, self.zero3, np.zeros((3, 1))]
         ])
         H_T = H.T
 
+        # Construct the measurement covariance matrix V
         V = np.block([
             [V_x_gps, self.zero3],
             [self.zero3, V_v_gps]
         ])
 
+        # Calculate the innovation covariance matrix S, the Kalman gain K, and the state correction X
         S = H.dot(self.P).dot(H_T) + V
         K = self.P.dot(H_T).dot(np.linalg.inv(S))
-
         X = K.dot(del_z)
 
+        # Extract the position correction, velocity correction, and accelerometer bias correction from X
         dx = X[0:3]
         dv = X[3:6]
         db_a = X[9]
 
+        # Update the position, velocity, and accelerometer bias estimates using the state correction
         self.x = self.x + dx
         self.v = self.v + dv
         self.b_a = self.b_a + db_a
 
+        # Update the error covariance matrix P using the Kalman gain
         I_KH = self.eye10 - K.dot(H)
         self.P = I_KH.dot(self.P).dot(I_KH.T) + K.dot(V).dot(K.T)
 
@@ -223,10 +243,14 @@ class Estimator:
             dt: (float) time difference between two loops
         """
 
+        # Save the current time as the previous time and get the current time
         self.t_pre = self.t * 1.0
         t_now = datetime.datetime.now()
+
+        # Calculate the time difference between the current time and the start time
         self.t = (t_now - self.t0).total_seconds()
 
+        # Return the time difference between the current time and the previous time
         return self.t - self.t_pre
 
 

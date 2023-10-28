@@ -20,30 +20,30 @@ from std_msgs.msg import String
 class Rover:
     def __init__(self):
 
-        self.on = True
-        self.motor_on = False
-        self.save_on = False
-        self.mode = 0
+        self.on = True                      # Turn on/off the rover
+        self.motor_on = False               # Turn on/off the motor
+        self.save_on = False                # Turn on/off the log
+        self.mode = 0                       # Mode of the rover
 
-        self.t0 = datetime.datetime.now()
-        self.t = 0.0
-        self.t_pre = 0.0
-        self.freq_imu = 0.0
-        self.freq_gps = 0.0
-        self.freq_control = 0.0
-        self.freq_log = 0.0
+        self.t0 = datetime.datetime.now()   # Start time
+        self.t = 0.0                        # Current time
+        self.t_pre = 0.0                    # Previous time
+        self.freq_imu = 0.0                 # IMU frequency
+        self.freq_gps = 0.0                 # GPS frequency
+        self.freq_control = 0.0             # Control frequency
+        self.freq_log = 0.0                 # Log frequency
 
-        self.x = np.zeros(3)
-        self.v = np.zeros(3)
-        self.a = np.zeros(3)
-        self.R = np.identity(3)
-        self.W = np.zeros(3)
+        self.x = np.zeros(3)                # (3x3 numpy array) Position
+        self.v = np.zeros(3)                # (3x3 numpy array) Velocity
+        self.a = np.zeros(3)                # (3x3 numpy array) Acceleration
+        self.R = np.identity(3)             # (3x3 numpy array) current attitude of the UAV in SO(3)
+        self.W = np.zeros(3)                # (3x1 numpy array) current angular velocity of the UAV [rad/s]
 
-        self.x_offset = np.zeros(3)
-        self.yaw_offset = 0.0
+        self.x_offset = np.zeros(3)         # (3x1 numpy array) Position offset
+        self.yaw_offset = 0.0               # (float) Yaw offset
 
-        self.g = 9.81
-        self.ge3 = np.array([0.0, 0.0, self.g])
+        self.g = 9.81                           # (float) Gravitational acceleration 
+        self.ge3 = np.array([0.0, 0.0, self.g]) # (3x1 numpy array) Gravitational acceleration in the ENU frame
 
         # Gazebo uses ENU frame, but NED frame is used in FDCL.
         # Note that ENU and the NED here refer to their direction order.
@@ -93,23 +93,43 @@ class Rover:
 
 
     def ros_imu_callback(self, message):
+        """
+        The function is used as a callback function for the IMU sensor data.
+        
+        The function first extracts the orientation quaternion, linear acceleration, 
+            and angular velocity from the message. It converts the orientation quaternion to a 
+            rotation matrix and transforms it to the FDCL frame. It also removes gravity from 
+            the linear acceleration and transforms it to the FDCL frame. Finally, it transforms 
+            the angular velocity to the FDCL frame.
+
+        The function then acquires a lock to ensure that the estimator is not modified by another thread. 
+            It predicts the states using the IMU measurements and corrects the states using 
+            the orientation measurement.
+        """
+        
+        # Extract orientation, linear acceleration, and angular velocity from the message
         q_gazebo = message.orientation
         a_gazebo = message.linear_acceleration
         W_gazebo = message.angular_velocity
 
+        # Convert the orientation quaternion to a rotation matrix
         q = np.array([q_gazebo.x, q_gazebo.y, q_gazebo.z, q_gazebo.w])
-
         R_gi = q_to_R(q) # IMU to Gazebo frame
         R_fi = self.R_fg.dot(R_gi)  # IMU to FDCL frame (NED freme)
 
-        # FDCL-UAV expects IMU accelerations without gravity.
+        # Remove gravity from the linear acceleration and transform to the FDCL frame
         a_i = np.array([a_gazebo.x, a_gazebo.y, a_gazebo.z])
         a_i = R_gi.T.dot(R_gi.dot(a_i) - self.ge3)
 
+        # Transform the angular velocity to the FDCL frame
         W_i = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
 
+        # Acquire a lock to ensure that the estimator is not modified by another thread
         with self.lock:
+            # Predict the states using the IMU measurements
             self.estimator.prediction(a_i, W_i)
+
+            # Correct the states using the orientation measurement
             self.estimator.imu_correction(R_fi, self.V_R_imu)
 
 
@@ -126,23 +146,43 @@ class Rover:
 
 
 
-def reset_uav():
-    rospy.wait_for_service('/gazebo/set_model_state')
-    
-    init_position = Point(x=0.0, y=0.0, z=0.2)
-    init_attitude = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
-    init_pose = Pose(position=init_position, orientation=init_attitude)
+    def reset_uav():
+        """
+        It is used to reset the UAV to its initial state.
 
-    zero_motion = Vector3(x=0.0, y=0.0, z=0.0)
-    init_velocity = Twist(linear=zero_motion, angular=zero_motion)
+        The function first waits for the set_model_state service to become available. 
+            It then sets the initial position and attitude of the UAV to (0, 0, 0.2) and 
+            (0, 0, 0, 1) respectively. It also sets the initial velocity of the UAV to zero.
 
-    model_state = ModelState(model_name='uav', reference_frame='world', \
-        pose=init_pose, twist=init_velocity)
-    
-    reset_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
-    reset_state(model_state)
+        The function then creates a ModelState object with the initial pose and velocity of the UAV. 
+            It calls the set_model_state service to reset the UAV to its initial state 
+            using the ModelState object.
 
-    print('Resetting UAV successful ..')
+        Finally, the function prints a message indicating that the reset was successful.
+        """
+        
+        # Wait for the set_model_state service to become available
+        rospy.wait_for_service('/gazebo/set_model_state')
+        
+        # Set the initial position and attitude of the UAV
+        init_position = Point(x=0.0, y=0.0, z=0.2)
+        init_attitude = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+        init_pose = Pose(position=init_position, orientation=init_attitude)
+
+        # Set the initial velocity of the UAV to zero
+        zero_motion = Vector3(x=0.0, y=0.0, z=0.0)
+        init_velocity = Twist(linear=zero_motion, angular=zero_motion)
+
+        # Create a ModelState object with the initial pose and velocity
+        model_state = ModelState(model_name='uav', reference_frame='world', \
+            pose=init_pose, twist=init_velocity)
+        
+        # Call the set_model_state service to reset the UAV to its initial state
+        reset_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
+        reset_state(model_state)
+
+        # Print a message indicating that the reset was successful
+        print('Resetting UAV successful ..')
 
 
 rover = Rover()

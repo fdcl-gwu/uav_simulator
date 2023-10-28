@@ -1,8 +1,9 @@
 import numpy as np
+from numpy import ndarray
 # import pdb
 
 
-def hat(x):
+def hat(x: ndarray) -> np.ndarray:
     """Returns the hat map of a given 3x1 vector.
 
     Args:
@@ -22,7 +23,7 @@ def hat(x):
     return x_hat
 
 
-def vee(x):
+def vee(x: ndarray) -> ndarray:
     """Returns the vee map of a given 3x3 matrix.
 
     Args:
@@ -35,7 +36,7 @@ def vee(x):
     return np.array([x[2,1], x[0,2], x[1,0]])
 
 
-def q_to_R(q):
+def q_to_R(q: ndarray) -> ndarray:
     """Converts a quaternion of a rotation matrix in SO(3).
 
     Args:
@@ -58,7 +59,7 @@ def q_to_R(q):
     return R
 
 
-def deriv_unit_vector(A, A_dot, A_2dot):
+def deriv_unit_vector(A: ndarray, A_dot: ndarray, A_2dot: ndarray) -> ndarray:
     """Returns the unit vector and it's derivatives for a given vector.
 
     Args:
@@ -98,7 +99,7 @@ def deriv_unit_vector(A, A_dot, A_2dot):
     return (q, q_dot, q_2dot)
 
 
-def saturate(x, x_min,  x_max):
+def saturate(x: ndarray, x_min: float,  x_max: float) -> ndarray:
     """Saturate input vector between two values.
     
     Args:
@@ -119,7 +120,7 @@ def saturate(x, x_min,  x_max):
     return x
 
 
-def expm_SO3(r):
+def expm_SO3(r: ndarray) -> ndarray:
     """Returns the matrix exponential of a matrix in SO(3).
 
     Args:
@@ -142,7 +143,7 @@ def expm_SO3(r):
     return R
 
 
-def sinx_over_x(x):
+def sinx_over_x(x: float) -> float:
     """Calculate sin(x)/x, while dealing with the cases where denominator is 
     zero.
 
@@ -163,7 +164,7 @@ def sinx_over_x(x):
     return y
 
 
-def ensure_vector(x, n):
+def ensure_vector(x: ndarray, n: int) -> bool:
     """Make sure the given input array x is a vector of size n.
 
     Args:
@@ -184,7 +185,7 @@ def ensure_vector(x, n):
     return True
 
 
-def ensure_matrix(x, m, n):
+def ensure_matrix(x: ndarray, m: int, n: int) -> ndarray:
     """Make sure the given input array x is a matrix of size mxn.
 
     Args:
@@ -206,7 +207,7 @@ def ensure_matrix(x, m, n):
     return True
 
 
-def ensure_skew(x, n):
+def ensure_skew(x: ndarray, n: int) -> bool:
     """Make sure the given input array is a skew-symmetric matrix of size nxn.
 
     Args:
@@ -225,7 +226,7 @@ def ensure_skew(x, n):
     return True
 
 
-def ensure_SO3(x):
+def ensure_SO3(x: ndarray) -> bool:
     """Make sure the given input array is in SO(3).
 
     Args:

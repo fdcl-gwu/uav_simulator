@@ -3,6 +3,7 @@ from integral_utils import IntegralError, IntegralErrorVec3
 
 import datetime
 import numpy as np
+from numpy import ndarray
 import pdb
 
 
@@ -345,7 +346,7 @@ class Control:
         """saturation limit"""
 
 
-    def run(self, states, desired):
+    def run(self, states, desired) -> np.ndarray:
         """Run the controller to get the force-moments required to achieve the 
         the desired states from the current state.
 
@@ -358,63 +359,68 @@ class Control:
             fM: (4x1 numpy array) force-moments vector
         """
 
+        # unpack the current states
         self.x, self.v, self.a, self.R, self.W = states
+        
+        # unpack the desired states
         self.xd, self.xd_dot, self.xd_2dot, self.xd_3dot, self.xd_4dot, \
-            self.b1d, self.b1d_dot, self.b1d_2dot, is_landed = desired
+            self.b1d, self.b1d_dot, self.b1d_2dot, is_landed = desired      
 
         # If the UAV is landed, do not run the controller and produce zero
         # force-moments.
         if is_landed:
             return np.zeros(4)
             
-        self.position_control()
-        self.attitude_control()
+        self.position_control()     # position controller
+        self.attitude_control()     # attitude controller
 
         return self.fM
 
 
-    def position_control(self):
+    def position_control(self) -> None:
         """Position controller to determine desired attitude and angular rates
-        to achieve the deisred states.
+        to achieve the desired states.
 
         This uses the controller defined in "Control of Complex Maneuvers
         for a Quadrotor UAV using Geometric Methods on SE(3)"
         URL: https://arxiv.org/pdf/1003.2005.pdf
         """
 
-        m = self.m
-        g = self.g
-        e3 = self.e3
+        # Retrieve necessary variables from the class
+        m = self.m                          # mass of the rover [kg]
+        g = self.g                          # gravitational acceleration [m/s^2]
+        e3 = self.e3                        # direction of the e3 axis
 
-        kX = self.kX
-        kV = self.kV
-        kIX = self.kIX
+        kX = self.kX                        # position gains
+        kV = self.kV                        # velocity gains
+        kIX = self.kIX                      # position integral gains
 
-        R = self.R
-        R_T = self.R.T
+        R = self.R                          # current attitude of the UAV in SO(3)
+        R_T = self.R.T                      # transpose of the current attitude of the UAV in SO(3)
 
-        x = self.x
-        v = self.v
-        W = self.W
+        x = self.x                          # current position of the UAV [m]
+        v = self.v                          # current velocity of the UAV [m/s]
+        W = self.W                          # current angular velocity of the UAV [rad/s]
 
-        b1d = self.b1d
-        b1d_dot = self.b1d_dot
-        b1d_2dot = self.b1d_2dot
+        b1d = self.b1d                      # desired direction of the first body axis
+        b1d_dot = self.b1d_dot              # first time derivative of the desired direction of the first body axis
+        b1d_2dot = self.b1d_2dot            # second time desired direction of the first body axis
         
-        xd = self.xd
-        xd_dot = self.xd_dot
-        xd_2dot = self.xd_2dot
-        xd_3dot = self.xd_3dot
-        xd_4dot = self.xd_4dot
+        xd = self.xd                        # desired position of the UAV [m]
+        xd_dot = self.xd_dot                # desired velocity of the UAV [m/s]
+        xd_2dot = self.xd_2dot              # desired accleration of the UAV [m/s^2]
+        xd_3dot = self.xd_3dot              # desired third derivative of the UAV position [m/s^3]
+        xd_4dot = self.xd_4dot              # desired fourth derivative of the UAV position [m/s^4]
 
+        # Update the current time and calculate the time difference
         self.update_current_time()
-        self.dt = self.t - self.t_pre
+        self.dt = self.t - self.t_pre       # time difference between two calls to the controller [s]
 
-        # Translational error functions
-        eX = x - xd  # position error - eq (11)
-        eV = v - xd_dot  # velocity error - eq (12)
+        # Calculate the translational error functions
+        eX = x - xd                         # position error - eq (11)
+        eV = v - xd_dot                     # velocity error - eq (12)
 
-        # Position integral terms
+        # Calculate the position integral terms
         if self.use_integral:
             self.eIX.integrate(self.c1 * eX + eV, self.dt)  # eq (13)
             self.eIX.error = saturate(self.eIX.error, \
@@ -422,7 +428,7 @@ class Control:
         else:
             self.eIX.set_zero()
 
-        # Force 'f' along negative b3-axis - eq (14)
+        # Calculate the force 'f' along negative b3-axis - eq (14)
         # This term equals to R.e3
         A = - kX @ eX \
             - kV @ eV \
@@ -436,7 +442,7 @@ class Control:
         b3_dot = R @ hatW @ e3  # eq (22)
         f_total = -A @ b3
 
-        # Intermediate terms for rotational errors
+        # Calculate the intermediate terms for rotational errors
         ea = g * e3 \
             - f_total / m * b3 \
             - xd_2dot
@@ -485,17 +491,16 @@ class Control:
         hat_Wd = hat(Wd)
         Wd_dot = vee(Rd_T @ Rd_2dot - hat_Wd @ hat_Wd)
 
+        # Update the class variables with the calculated values
         self.f_total = f_total
         self.Rd = Rd
         self.Wd = Wd
         self.Wd_dot = Wd_dot
 
-        # Roll / pitch
+        # Update the desired roll / pitch and yaw
         self.b3d = b3c
         self.b3d_dot = b3c_dot
         self.b3d_2dot = b3c_2dot
-
-        # Yaw
         self.b1c = b1c
         self.wc3 = e3 @ (R_T @ Rd @ Wd)
         self.wc3_dot = e3 @ (R_T @ Rd @ Wd_dot) \
@@ -511,37 +516,37 @@ class Control:
         URL: https://doi.org/10.23919/ACC.2019.8815189
         """
 
-        R = self.R
-        R_T = self.R.T
+        R       : ndarray = self.R          # current attitude of the UAV in SO(3)
+        R_T     : ndarray = self.R.T        # transpose of the current attitude of the UAV in SO(3)
 
-        Rd = self.Rd
-        Rd_T = self.Rd.T
+        Rd      : ndarray = self.Rd         # desired attitude in SO(3)
+        Rd_T    : ndarray = self.Rd.T       # transpose of the desired attitude in SO(3)
 
-        b3d = self.b3d
-        b3d_dot = self.b3d_dot
-        b3d_2dot = self.b3d_2dot
+        b3d     : ndarray = self.b3d        # desired direction of the third body axis
+        b3d_dot : ndarray = self.b3d_dot    # first time derivative of the desired direction of the third body axis
+        b3d_2dot: ndarray = self.b3d_2dot   # desired direction of the third body axis
 
-        W = self.W
-        Wd = self.Wd
+        W       : ndarray = self.W          # current angular velocity of the UAV [rad/s]
+        Wd      : ndarray = self.Wd         # desired body angular velocity [rad/s]
 
-        J = self.J
+        J       : ndarray = self.J          # inertia matrix of the rover
         
-        b1 = R @ self.e1
-        b2 = R @ self.e2
-        b3 = R @ self.e3
+        b1      : ndarray = R @ self.e1     # current direction of the first body axis
+        b2      : ndarray = R @ self.e2     # current direction of the second body axis
+        b3      : ndarray = R @ self.e3     # current direction of the third body axis
 
-        hat_b3 = hat(b3)
+        hat_b3  : ndarray = hat(b3)         # hat map of the current direction of the third body axis
 
         # Roll/pitch angular velocity vector
-        W_12 = W[0] * b1 + W[1] * b2
-        b3_dot = hat(W_12) @ b3  # eq (26)
+        W_12 = W[0] * b1 + W[1] * b2  
+        b3_dot = hat(W_12) @ b3             # eq (26)
 
-        hat_b3d = hat(b3d)
-        W_12d = hat_b3d @ b3d_dot
+        hat_b3d = hat(b3d)                  # hat map of the desired direction of the third body axis
+        W_12d = hat_b3d @ b3d_dot            
         W_12d_dot = hat_b3d @ b3d_2dot
 
-        eb = hat_b3d @ b3  # eq (27)
-        ew = W_12 + hat_b3 @ hat_b3 @ W_12d  # eq (28)
+        eb = hat_b3d @ b3                   # eq (27)
+        ew = W_12 + hat_b3 @ hat_b3 @ W_12d # eq (28)
 
         # Yaw
         ey = -b2 @ self.b1c
