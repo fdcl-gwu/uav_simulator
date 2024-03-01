@@ -1,27 +1,28 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.22.1)
 project(uav_gazebo)
 
-find_package(catkin REQUIRED COMPONENTS
-  gazebo_ros
-)
+set(CMAKE_CXX_STANDARD 14)
 
-# Depend on system install of Gazebo
+find_package(ament_cmake REQUIRED)
+find_package(gazebo_ros REQUIRED)
 find_package(gazebo REQUIRED)
 
-include_directories(
-    #include 
+ament_export_include_directories(
     ${catkin_INCLUDE_DIRS} 
     ${GAZEBO_INCLUDE_DIRS} 
     ${SDFormat_INCLUDE_DIRS}
 )
 
-# Build whatever you need here
-# add_library(...) # TODO
-
-catkin_package(
-    DEPENDS
+ament_export_dependencies(
     gazebo_ros
-    CATKIN_DEPENDS
-    INCLUDE_DIRS
-    LIBRARIES
 )
+
+install(DIRECTORY
+  launch
+  meshes
+  urdf
+  worlds
+  DESTINATION share/${PROJECT_NAME}
+)
+
+ament_package()

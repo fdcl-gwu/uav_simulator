@@ -3,7 +3,7 @@
   <gazebo reference="link">
     <material>Gazebo/Orange</material>
     <gravity>true</gravity>
-    
+<!--     
     <sensor name="imu_sensor" type="imu">
       <always_on>true</always_on>
       <update_rate>100</update_rate>
@@ -18,10 +18,10 @@
         <frameName>uav_imu</frameName>
       </plugin>
       <pose>0 0 0 0 0 0</pose>
-    </sensor>
+    </sensor> -->
   </gazebo>
 
-  <gazebo>
+  <!-- <gazebo>
     <plugin name="pose_3d_plugin" filename="libgazebo_ros_p3d.so">
       <bodyName>link</bodyName>
       <topicName>uav_pos</topicName>
@@ -36,5 +36,5 @@
       <bodyName>link</bodyName>
       <topicName>uav_fm</topicName>
     </plugin>
-  </gazebo>
+  </gazebo> -->
 </robot>

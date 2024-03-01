@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot name="uav" xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:include filename="$(find uav_gazebo)/urdf/uav.gazebo" />
+  <!-- <xacro:include filename="$(find uav_gazebo)/urdf/uav.gazebo" /> -->
 
   <link name="link">
     <pose>0 0 0.2 0 0 0</pose>
