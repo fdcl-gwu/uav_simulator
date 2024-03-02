@@ -51,7 +51,7 @@
   <gazebo>
     <plugin name="pose_3d_plugin" filename="libgazebo_ros_p3d.so">
       <ros>
-            <remapping>odom:=uav/pos</remapping>
+            <remapping>odom:=uav/gps</remapping>
       </ros>
 
       <body_name>link</body_name>

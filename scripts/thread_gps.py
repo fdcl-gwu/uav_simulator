@@ -1,34 +1,53 @@
-from rover import rover
+# from rover import rover
 
 import datetime
 import numpy as np
-import rospy
+
+import rclpy
+from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
 
+class GpsNode(Node):
 
-def thread_gps():
-    print('GPS: thread starting ..')
+    def __init__(self):
+        super().__init__('gps_sensor')
+        self.subscription = self.create_subscription(
+            Odometry,
+            '/uav/gps',
+            self.listener_callback,
+            1)
+        self.subscription  # prevent unused variable warning
 
-    rospy.Subscriber('uav_pos', Odometry, rover.ros_gps_callback)
-    rate = rospy.Rate(10) # 10 hz
+        self.first = True
 
-    freq = 10.0
-    t = datetime.datetime.now()
-    t_pre = datetime.datetime.now()
-    avg_number = 10
+    def listener_callback(self, msg):
+        # print(msg)
+        pass
 
-    while not rospy.is_shutdown() and rover.on:
 
-        t = datetime.datetime.now()
-        dt = (t - t_pre).total_seconds()
-        if dt < 1e-3:
-            continue
+# def thread_gps():
+#     print('GPS: thread starting ..')
 
-        freq = (freq * (avg_number - 1) + (1 / dt)) / avg_number
-        t_pre = t
-        rover.freq_gps = freq
+#     rospy.Subscriber('uav_pos', Odometry, rover.ros_gps_callback)
+#     rate = rospy.Rate(10) # 10 hz
 
-        rate.sleep()
+#     freq = 10.0
+#     t = datetime.datetime.now()
+#     t_pre = datetime.datetime.now()
+#     avg_number = 10
+
+#     while not rospy.is_shutdown() and rover.on:
+
+#         t = datetime.datetime.now()
+#         dt = (t - t_pre).total_seconds()
+#         if dt < 1e-3:
+#             continue
+
+#         freq = (freq * (avg_number - 1) + (1 / dt)) / avg_number
+#         t_pre = t
+#         rover.freq_gps = freq
+
+#         rate.sleep()
     
-    print('GPS: thread closed!')
+#     print('GPS: thread closed!')
