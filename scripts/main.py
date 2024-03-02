@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# from rover import rover, reset_uav
+from rover import rover, reset_uav
 
 # from gui import thread_gui
 from thread_imu import ImuNode
@@ -19,7 +19,7 @@ def run_uav():
 
     print("ROS init")
     rclpy.init()
-    # reset_uav()
+    reset_uav()
 
     executor = rclpy.executors.MultiThreadedExecutor()
     executor.add_node((ImuNode()))
@@ -35,8 +35,6 @@ def run_uav():
     # Create threads
     # threads = []
     # threads.append(threading.Thread(target=thread_control))
-    # threads.append(threading.Thread(target=thread_imu))
-    # threads.append(threading.Thread(target=thread_gps))
     # threads.append(threading.Thread(target=thread_gui))
     # threads.append(threading.Thread(target=thread_log))
     

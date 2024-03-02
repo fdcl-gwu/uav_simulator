@@ -5,7 +5,6 @@ import numpy as np
 
 import rclpy
 from rclpy.node import Node
-
 from nav_msgs.msg import Odometry
 
 class GpsNode(Node):

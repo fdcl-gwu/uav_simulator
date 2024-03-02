@@ -5,9 +5,12 @@ from trajectory import Trajectory
 
 import datetime
 import numpy as np
+import os
 import pdb
-import rospy
 import threading
+
+import rclpy
+from rclpy.node import Node
 
 from geometry_msgs.msg import Pose, Twist, Wrench
 from geometry_msgs.msg import Vector3, Point, Quaternion
@@ -127,22 +130,30 @@ class Rover:
 
 
 def reset_uav():
-    rospy.wait_for_service('/gazebo/set_model_state')
+    print("Reset: init")
+
+    service_call = 'ros2 service call '
+    arguments = '/gazebo/set_entity_state gazebo_msgs/SetEntityState '
     
-    init_position = Point(x=0.0, y=0.0, z=0.2)
-    init_attitude = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
-    init_pose = Pose(position=init_position, orientation=init_attitude)
+    entity_name = 'name: uav'
 
-    zero_motion = Vector3(x=0.0, y=0.0, z=0.0)
-    init_velocity = Twist(linear=zero_motion, angular=zero_motion)
-
-    model_state = ModelState(model_name='uav', reference_frame='world', \
-        pose=init_pose, twist=init_velocity)
+    position = 'position:{x: 0.0, y: 0.0, z: 0.5}'
+    orientation = 'orientation:{x: 0.0, y: 0.0, z: 0.0, w: 1.0}'
+    pose = 'pose: {' + position + ',' + orientation + '}'
     
-    reset_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
-    reset_state(model_state)
+    linear = 'linear:{x: 0.0, y: 0.0, z: 0.0}'
+    angular = 'angular:{x: 0.0, y: 0.0, z: 0.0}'
+    twist = 'twist: {' + linear + ',' + angular + '}'
+    
+    reference_frame = 'reference_frame: world'
+    
+    state = '\"state: {' + entity_name + ', ' + pose + ', ' + twist + ', ' \
+        + reference_frame + '}\"'
 
-    print('Resetting UAV successful ..')
+    command = service_call + arguments + state
+    response = os.system(command)
+
+    print('Reset: successful')
 
 
 rover = Rover()
