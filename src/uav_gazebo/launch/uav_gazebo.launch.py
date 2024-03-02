@@ -16,19 +16,8 @@ pkg_uav_gazebo = get_package_share_directory('uav_gazebo')
 
 def generate_launch_description():
 
-    urdf_file_name = 'uav.xacro'
-    urdf_file = os.path.join(pkg_uav_gazebo, 'urdf', urdf_file_name)
-    print(urdf_file)
-
-    declare_urdf_file_arg = DeclareLaunchArgument(
-        'urdf_file',
-        default_value=os.path.join(pkg_uav_gazebo, 'urdf', urdf_file_name),
-        description='urdf/' + urdf_file_name
-    )
-
-    world_path = os.path.join(pkg_uav_gazebo, 'worlds', 'simple.world')
-
     # World
+    world_path = os.path.join(pkg_uav_gazebo, 'worlds', 'simple.world')
     world_file = DeclareLaunchArgument(
         'world',
         default_value=[world_path],
@@ -42,29 +31,21 @@ def generate_launch_description():
         )
     ) 
 
-    # spawn_entity = Node(package='gazebo_ros', executable='spawn_entity.py',
-    #     respawn=False,
-    #     arguments=['-urdf', "-model", "uav", "-param", urdf],
-    #     output='screen')
+    # UAV
+    urdf_file_name = 'uav.xacro'
+    urdf_file = os.path.join(pkg_uav_gazebo, 'urdf', urdf_file_name)
+    # print(urdf_file)
 
-    spawn_uav = Node(package='gazebo_ros', executable='spawn_entity.py', 
-        arguments=['-entity', 'uav', '-file', urdf_file, '-x', '0', '-y', '0', '-z', '1'],
-        output='screen')
-
-    # spawn_uav = Node(
-    #     package='gazebo_ros',
-    #     executable='create',
-    #     output='screen',
-    #     arguments=["-file", urdf]
-    # )   
+    spawn_uav = Node(
+        package='gazebo_ros', 
+        executable='spawn_entity.py', 
+        arguments=['-entity', 'uav', '-file', urdf_file, \
+            '-x', '0', '-y', '0', '-z', '0.2'],
+        output='screen'
+    )
 
     return LaunchDescription([
-        declare_urdf_file_arg,
         world_file,
         gazebo,
         spawn_uav
-        # world_argument,
-        # verbose_argument,
-        # gazebo_gui,
-        # include_gazebo
     ])

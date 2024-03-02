@@ -23,4 +23,49 @@
       </geometry>
     </visual>
   </link>
+
+  <gazebo reference="link">
+    <material>Gazebo/Orange</material>
+    <gravity>true</gravity>
+    
+    <sensor name="imu_sensor" type="imu">
+      <pose>0 0 0 0 0 0</pose>
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>true</visualize>
+
+      <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
+        <ros>
+            <remapping>~/out:=uav/imu</remapping>
+        </ros>
+
+        <pose>0 0 0 0 0 0</pose>
+        <body_name>link</body_name>
+        <update_rate>100.0</update_rate>
+        <gaussian_noise>0.0001</gaussian_noise>
+      </plugin>
+    </sensor>
+
+  </gazebo>
+
+  <gazebo>
+    <plugin name="pose_3d_plugin" filename="libgazebo_ros_p3d.so">
+      <ros>
+            <remapping>odom:=uav/pos</remapping>
+      </ros>
+
+      <body_name>link</body_name>
+      <frame_name>world</frame_name>
+      <gaussian_noise>0.01</gaussian_noise>
+      <update_rate>10</update_rate>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="uav_fm" filename="libcontrol_plugin.so">
+      <body_name>link</body_name>
+      <topic_name>uav/fm</topic_name>
+    </plugin>
+  </gazebo>
+
 </robot>
