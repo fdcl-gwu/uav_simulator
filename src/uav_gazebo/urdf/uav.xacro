@@ -62,7 +62,7 @@
   </gazebo>
 
   <gazebo>
-    <plugin name="uav_fm" filename="libcontrol_plugin.so">
+    <plugin name="control_plugin" filename="libcontrol_plugin.so">
       <body_name>link</body_name>
       <topic_name>uav/fm</topic_name>
     </plugin>

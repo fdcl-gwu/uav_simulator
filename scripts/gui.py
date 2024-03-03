@@ -8,6 +8,24 @@ import os
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Gdk
 
+from rclpy.node import Node
+
+class GuiNode(Node):
+    def __init__(self):
+        super().__init__('gui')
+        # self.publisher_ = self.create_publisher(Wrench, 'uav/fm', 10)
+        
+        timer_period = 1  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+
+    def timer_callback(self):
+        
+        print(rover.estimator.x)
+        # gui = Gui()
+        # GLib.idle_add(gui.update_gui)
+        # Gtk.main()
+
+
 
 class Gui():
     def __init__(self):

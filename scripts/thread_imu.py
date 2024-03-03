@@ -22,7 +22,7 @@ class ImuNode(Node):
 
     def listener_callback(self, msg):
         # print(msg)
-        pass
+        rover.ros_imu_callback(msg)
 
 
 

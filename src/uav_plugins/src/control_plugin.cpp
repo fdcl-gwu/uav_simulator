@@ -44,7 +44,7 @@ public:
         world_ = model->GetWorld();
         model_ = model;
 
-        link_name_ = sdf->GetElement("bodyName")->Get<std::string>();
+        link_name_ = sdf->GetElement("body_name")->Get<std::string>();
         link_ = model->GetLink(link_name_);
 
         // Listen to the update event. This event is broadcast every
@@ -55,8 +55,10 @@ public:
         rn_ = gazebo_ros::Node::Get(sdf);
         RCLCPP_INFO(rn_->get_logger(), "Loading UAV Control Plugin");
 
+
         // Start the ROS subscriber.
-        topic_name_ = sdf->GetElement("topicName")->Get<std::string>();
+        topic_name_ = sdf->GetElement("topic_name")->Get<std::string>();
+        std::cout << "============ " << topic_name_ << std::endl;
         sub_fm_ = rn_->create_subscription<geometry_msgs::msg::Wrench>( \
             topic_name_, 1, std::bind(&UavControlPlugin::update_fm, this, \
             std::placeholders::_1));

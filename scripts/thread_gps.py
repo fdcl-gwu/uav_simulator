@@ -1,4 +1,4 @@
-# from rover import rover
+from rover import rover
 
 import datetime
 import numpy as np
@@ -22,7 +22,7 @@ class GpsNode(Node):
 
     def listener_callback(self, msg):
         # print(msg)
-        pass
+        rover.ros_gps_callback(msg)
 
 
 # def thread_gps():
