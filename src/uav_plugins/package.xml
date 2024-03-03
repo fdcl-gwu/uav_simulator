@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+
 <package format="2">
-  <name>fdcl_uav_plugins</name>
+  <name>uav_control_plugin</name>
   <version>0.0.0</version>
-  <description>The fdcl_uav_plugins package</description>
+  <description>The control plugin package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -17,14 +19,24 @@
 
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <build_depend>message_generation</build_depend>
+  <!-- <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
 
   <build_depend>geometry_msgs</build_depend>
-  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend> -->
 
-  <!-- The export tag contains other, unspecified, tags -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>ros2run</exec_depend>
+
+  <!-- <exec_depend>uav_gazebo</exec_depend> -->
+
+  <depend>geometry_msgs</depend>
+  <depend>gazebo_ros</depend>
+  <depend>rclcpp</depend>
+
   <export>
     <build_type>ament_cmake</build_type>
+    <gazebo_ros gazebo_model_path="${prefix}/.." />
+    <gazebo_ros plugin_path="${prefix}" />
   </export>
 </package>

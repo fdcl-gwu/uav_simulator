@@ -193,3 +193,5 @@ You only need to do the followings once (unless you change the Gazebo plugins)
 * Run `python -m unittest`.
 * Unit tests have only been tested on Python 3.9.
 * Currently, unit test only covers the `matrix_utils.py` module. 
+
+`export GAZEBO_PLUGIN_PATH=/home/kani/Documents/uav_simulator/build:$GAZEBO_PLUGIN_PATH`

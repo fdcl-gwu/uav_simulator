@@ -9,12 +9,25 @@ from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+from scripts import GazeboRosPaths
+
 import os
 
 pkg_gazebo_ros = get_package_share_directory('gazebo_ros')
 pkg_uav_gazebo = get_package_share_directory('uav_gazebo')
 
 def generate_launch_description():
+
+    model_path, plugin_path, media_path = GazeboRosPaths.get_paths()
+
+    print(plugin_path)
+    print("+++++++++++++++")
+
+    env = {
+        "GAZEBO_MODEL_PATH": model_path,
+        "GAZEBO_PLUGIN_PATH": plugin_path,
+        "GAZEBO_RESOURCE_PATH": media_path,
+    }
 
     # World
     world_path = os.path.join(pkg_uav_gazebo, 'worlds', 'simple.world')
@@ -32,16 +45,16 @@ def generate_launch_description():
     ) 
 
     # UAV
-    urdf_file_name = 'uav.xacro'
+    urdf_file_name = 'uav.urdf'
     urdf_file = os.path.join(pkg_uav_gazebo, 'urdf', urdf_file_name)
-    # print(urdf_file)
 
     spawn_uav = Node(
         package='gazebo_ros', 
         executable='spawn_entity.py', 
         arguments=['-entity', 'uav', '-file', urdf_file, \
             '-x', '0', '-y', '0', '-z', '0.2'],
-        output='screen'
+        output='screen',
+        additional_env=env
     )
 
     return LaunchDescription([

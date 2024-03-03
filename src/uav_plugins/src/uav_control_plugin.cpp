@@ -41,6 +41,10 @@ class UavControlPlugin : public ModelPlugin
 public: 
     void Load(gazebo::physics::ModelPtr model, sdf::ElementPtr sdf)
     {
+        std::cout << "Loading UAV Control Plugin\n";
+
+        rn_ = gazebo_ros::Node::Get(sdf);
+
         world_ = model->GetWorld();
         model_ = model;
 
@@ -52,13 +56,9 @@ public:
         update_connection_ = event::Events::ConnectWorldUpdateBegin( \
             std::bind(&UavControlPlugin::update, this));
 
-        rn_ = gazebo_ros::Node::Get(sdf);
-        RCLCPP_INFO(rn_->get_logger(), "Loading UAV Control Plugin");
-
-
         // Start the ROS subscriber.
         topic_name_ = sdf->GetElement("topic_name")->Get<std::string>();
-        std::cout << "============ " << topic_name_ << std::endl;
+
         sub_fm_ = rn_->create_subscription<geometry_msgs::msg::Wrench>( \
             topic_name_, 1, std::bind(&UavControlPlugin::update_fm, this, \
             std::placeholders::_1));
@@ -121,7 +121,6 @@ public:
 
     void update_fm(const geometry_msgs::msg::Wrench &msg) const
     {
-
         f[0] = msg.force.x;
         f[1] = msg.force.y;
         f[2] = msg.force.z;

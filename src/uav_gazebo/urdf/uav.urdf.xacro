@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
+
 <robot name="uav" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- <xacro:include filename="$(find uav_gazebo)/urdf/uav.gazebo" /> -->
 
@@ -62,9 +63,9 @@
   </gazebo>
 
   <gazebo>
-    <plugin name="control_plugin" filename="libcontrol_plugin.so">
+    <plugin name="uav_control_plugin" filename="libuav_control_plugin.so">
       <body_name>link</body_name>
-      <topic_name>uav/fm</topic_name>
+      <topic_name>/uav/fm</topic_name>
     </plugin>
   </gazebo>
 

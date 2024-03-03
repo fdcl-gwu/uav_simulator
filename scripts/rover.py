@@ -135,7 +135,7 @@ def reset_uav():
     service_call = 'ros2 service call '
     arguments = '/gazebo/set_entity_state gazebo_msgs/SetEntityState '
     
-    entity_name = 'name: uav'
+    entity_name = 'name: uav.urdf'
 
     position = 'position:{x: 0.0, y: 0.0, z: 0.5}'
     orientation = 'orientation:{x: 0.0, y: 0.0, z: 0.0, w: 1.0}'

@@ -19,12 +19,12 @@ def run_uav():
 
     print("ROS init")
     rclpy.init()
-    # reset_uav()
+    reset_uav()
 
     executor = rclpy.executors.MultiThreadedExecutor()
     executor.add_node((ImuNode()))
     executor.add_node((GpsNode()))
-    # executor.add_node((ControlNode()))
+    executor.add_node((ControlNode()))
     # executor.add_node((GuiNode()))
 
     thread = threading.Thread(target=thread_gui)
