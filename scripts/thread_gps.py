@@ -22,7 +22,8 @@ class GpsNode(Node):
 
     def listener_callback(self, msg):
         # print(msg)
-        rover.ros_gps_callback(msg)
+        pass
+        # rover.ros_gps_callback(msg)
 
 
 # def thread_gps():

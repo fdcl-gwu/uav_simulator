@@ -4,27 +4,209 @@ from plot_utils import plot_data
 import gi
 import numpy as np
 import os
+import sys
 
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gdk
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, \
+    QHBoxLayout, QPushButton, QRadioButton
 
 from rclpy.node import Node
 
 class GuiNode(Node):
     def __init__(self):
         super().__init__('gui')
-        # self.publisher_ = self.create_publisher(Wrench, 'uav/fm', 10)
-        
-        timer_period = 1  # seconds
-        self.timer = self.create_timer(timer_period, self.timer_callback)
 
-    def timer_callback(self):
-        
-        print(rover.estimator.x)
-        # gui = Gui()
-        # GLib.idle_add(gui.update_gui)
-        # Gtk.main()
+        app = QApplication([])
+        window = QWidget()
+        window.setWindowTitle("FDCL UAV Simulator")
+        # window.setGeometry(100, 100, 280, 80)
 
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(10)
+        # main_layout.setMargin(10)
+
+
+        # Status box
+        self.label_time = QLabel("0.0")
+        self.label_freq_imu = QLabel("0.0")
+        self.label_freq_gps = QLabel("0.0")
+        self.label_freq_control = QLabel("0.0")
+        self.label_freq_estimator = QLabel("0.0")
+
+        thread_status_box = QHBoxLayout()
+        thread_status_box.setAlignment(Qt.AlignLeft)
+        thread_status_box.addWidget(self.label_time)
+        thread_status_box.addWidget(self.label_freq_imu)
+        thread_status_box.addWidget(self.label_freq_gps)
+        thread_status_box.addWidget(self.label_freq_control)
+        thread_status_box.addWidget(self.label_freq_estimator)
+
+
+        # Control box
+        self.button_on = QPushButton("Shutdown")
+        self.button_on.clicked.connect(self.exit)
+        self.button_motor_on = QPushButton("Turn on motors")
+
+        controls_box = QHBoxLayout()
+        controls_box.setAlignment(Qt.AlignLeft)
+        controls_box.addWidget(self.button_on)
+        controls_box.addWidget(self.button_motor_on)
+
+
+        # Flight mode box
+        label_flight_mode = QLabel("Mode: ")
+        self.radio_button_modes = \
+            [ \
+                QRadioButton("Idle"), \
+                QRadioButton("Warmup"), \
+                QRadioButton("Take-off"), \
+                QRadioButton("Stay"), \
+                QRadioButton("Manual"), \
+                QRadioButton("Circle") \
+            ]
+        num_flight_modes = len(self.radio_button_modes)
+        
+        flight_mode_box = QHBoxLayout()
+        flight_mode_box.setAlignment(Qt.AlignLeft)
+        flight_mode_box.addWidget(label_flight_mode)
+        for i in range(num_flight_modes):
+            flight_mode_box.addWidget(self.radio_button_modes[i])
+
+
+        # State box
+        state_box = QHBoxLayout()
+        state_box.setAlignment(Qt.AlignLeft)
+        state_box.addSpacing(5)
+        [state_box, self.label_x] = self.init_vbox(state_box, "x", 4)
+        [state_box, self.label_v] = self.init_vbox(state_box, "v", 4)
+        [state_box, self.label_a] = self.init_vbox(state_box, "a", 4)
+        [state_box, self.label_R] = self.init_attitude_vbox(state_box, "R")
+        [state_box, self.label_W] = self.init_vbox(state_box, "W", 4)
+
+
+        # Desired box
+        desired_box = QHBoxLayout()
+        desired_box.setAlignment(Qt.AlignLeft)
+        desired_box.addSpacing(5)
+        [desired_box, self.label_xd] = self.init_vbox(desired_box, "xd", 4)
+        [desired_box, self.label_vd] = self.init_vbox(desired_box, "vd", 4)
+        [desired_box, self.label_b1d] = self.init_vbox(desired_box, "b1d", 4)
+        [desired_box, self.label_Rd] = self.init_attitude_vbox(desired_box, "Rd")
+        [desired_box, self.label_Wd] = self.init_vbox(desired_box, "Wd", 4)
+
+
+        # Sensor box
+        sensor_box = QHBoxLayout()
+        sensor_box.setAlignment(Qt.AlignLeft)
+        sensor_box.addSpacing(5)
+        [sensor_box, self.label_imu_ypr] = self.init_vbox(sensor_box, "IMU YPR", 4)
+        [sensor_box, self.label_imu_a] = self.init_vbox(sensor_box, "IMU a", 4)
+        [sensor_box, self.label_imu_W] = self.init_vbox(sensor_box, "IMU W", 4)
+        [sensor_box, self.label_gps_x] = self.init_vbox(sensor_box, "GPS x", 4)
+        [sensor_box, self.label_gps_v] = self.init_vbox(sensor_box, "GPS v", 4)
+
+
+        # Error box
+        error_box = QHBoxLayout()
+        error_box.setAlignment(Qt.AlignLeft)
+        error_box.addSpacing(5)
+        [error_box, self.label_ex] = self.init_vbox(error_box, "ex", 4)
+        [error_box, self.label_ev] = self.init_vbox(error_box, "ev", 4)
+        [error_box, self.label_fM] = self.init_vbox(error_box, "f-M", 4)
+        [error_box, self.label_f] = self.init_vbox(error_box, "f", 4)
+        [error_box, self.label_thr] = self.init_vbox(error_box, "Throttle", 4)
+
+
+        # Left box
+        left_box = QVBoxLayout()
+        left_box.setAlignment(Qt.AlignTop)
+        left_box.addSpacing(5)
+        left_box.addLayout(state_box)
+        main_layout.addSpacing(10)
+        left_box.addLayout(desired_box)
+
+
+        # Right box
+        right_box = QVBoxLayout()
+        right_box.setAlignment(Qt.AlignTop)
+        right_box.addSpacing(5)
+        right_box.addLayout(sensor_box)
+        main_layout.addSpacing(10)
+        right_box.addLayout(error_box)
+
+        # Data box
+        data_box = QHBoxLayout()
+        data_box.setAlignment(Qt.AlignLeft)
+        data_box.addLayout(left_box)
+        data_box.addSpacing(5)
+        data_box.addLayout(right_box)
+
+        main_layout.setAlignment(Qt.AlignTop)
+        main_layout.addLayout(thread_status_box)
+        main_layout.addSpacing(5)
+        main_layout.addLayout(controls_box)
+        main_layout.addSpacing(5)
+        main_layout.addLayout(flight_mode_box)
+        main_layout.addSpacing(5)
+        main_layout.addLayout(data_box)
+
+        window.setLayout(main_layout)
+        window.show()
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update)
+        self.timer.start(1000)
+
+        sys.exit(app.exec())
+
+
+    def init_vbox(self, box, name, num):
+        vbox = QVBoxLayout()
+        vbox.setAlignment(Qt.AlignTop)
+
+        labels = []
+        for _ in range(num):
+            label_i = QLabel("{:5.2}".format(0.0))
+
+            labels.append(label_i)
+            vbox.addWidget(label_i)
+
+        labels[0].setText(name)
+        box.addLayout(vbox)
+
+        return [box, labels]
+
+    
+    def init_attitude_vbox(self, box, name):
+        vbox_array = [QVBoxLayout(), QVBoxLayout(), QVBoxLayout()]
+        labels = []
+
+        for vbox_index in range(len(vbox_array)):
+            vbox = vbox_array[vbox_index]
+            vbox.setAlignment(Qt.AlignTop)
+
+            for _ in range(4):
+                label_i = QLabel("{:6.4}".format(0.0))
+            
+                labels.append(label_i)
+                vbox.addWidget(label_i)
+
+            box.addLayout(vbox)
+
+        labels[0].setText(name)
+        labels[4].setText("")
+        labels[8].setText("")
+
+        return [box, labels]
+
+
+    def exit(self):
+        self.get_logger().info("Program closed")
+        sys.exit(0)
+
+    
+    def update(self):
+        print(1)
 
 
 class Gui():

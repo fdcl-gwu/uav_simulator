@@ -86,11 +86,12 @@ class Rover:
 
         with self.lock:
             states = self.estimator.get_states()
-            desired = self.trajectory.get_desired(rover.mode, states, \
-                self.x_offset, self.yaw_offset)
-            fM = self.control.run(states, desired)
+            
+        desired = self.trajectory.get_desired(rover.mode, states, \
+            self.x_offset, self.yaw_offset)
+        fM = self.control.run(states, desired)
 
-            self.x, self.v, self.a, self.R, self.W = states
+        self.x, self.v, self.a, self.R, self.W = states
 
         return fM
 

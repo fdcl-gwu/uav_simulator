@@ -142,19 +142,19 @@ You only need to do the followings once (unless you change the Gazebo plugins)
 1. Make the plugging.
     ```sh
     # From uav_simulator
-    catkin_make
+    colcon build
     ```
 1. Source the relevant directories (**NOTE**: you need to do this on every new terminal).
     ```sh
     # From uav_simulator
-    cd devel && source setup.bash && cd ../
+    source install/local_setup.bash
     ```
 
 ### Running the simulation environment 
 1. In the current terminal window, launch the Gazebo environment:
     ```sh
     # From uav_simulator
-    roslaunch uav_gazebo simple_world.launch 
+    ros2 launch uav_gazebo uav_gazebo.launch.py 
     ```
 1. Once the Gazebo is launched, run the rover code from a different rover terminal (if you already don't know, you may find [**tmux**](https://github.com/tmux/tmux/wiki) a life-saver):
     ```sh

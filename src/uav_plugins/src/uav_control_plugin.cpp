@@ -12,7 +12,7 @@
 #include <ignition/math/Vector3.hh>
 
 #include <geometry_msgs/msg/pose.hpp>
-#include <geometry_msgs/msg/wrench.hpp>
+#include <geometry_msgs/msg/wrench_stamped.hpp>
 
 // #include <ros/ros.h>
 // #include "std_msgs/String.h"
@@ -59,7 +59,7 @@ public:
         // Start the ROS subscriber.
         topic_name_ = sdf->GetElement("topic_name")->Get<std::string>();
 
-        sub_fm_ = rn_->create_subscription<geometry_msgs::msg::Wrench>( \
+        sub_fm_ = rn_->create_subscription<geometry_msgs::msg::WrenchStamped>( \
             topic_name_, 1, std::bind(&UavControlPlugin::update_fm, this, \
             std::placeholders::_1));
     }
@@ -119,18 +119,18 @@ public:
     }
 
 
-    void update_fm(const geometry_msgs::msg::Wrench &msg) const
+    void update_fm(const geometry_msgs::msg::WrenchStamped &msg) const
     {
-        f[0] = msg.force.x;
-        f[1] = msg.force.y;
-        f[2] = msg.force.z;
+        // f[0] = msg.force.x;
+        // f[1] = msg.force.y;
+        // f[2] = msg.force.z;
 
-        M[0] = msg.torque.x;
-        M[1] = msg.torque.y;
-        M[2] = msg.torque.z;
+        // M[0] = msg.torque.x;
+        // M[1] = msg.torque.y;
+        // M[2] = msg.torque.z;
 
-        no_msg_counter = 0;
-        print_reset_message = false;
+        // no_msg_counter = 0;
+        // print_reset_message = false;
     }
 
 
@@ -172,7 +172,7 @@ private:
     event::ConnectionPtr update_connection_;
 
     rclcpp::Node::SharedPtr rn_;
-    rclcpp::Subscription<geometry_msgs::msg::Wrench>::SharedPtr sub_fm_;
+    rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr sub_fm_;
 
 
     static igm::Vector3d f;

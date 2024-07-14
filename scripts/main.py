@@ -2,7 +2,7 @@
 
 from rover import rover, reset_uav
 
-from gui import thread_gui
+from gui import GuiNode
 from thread_imu import ImuNode
 from thread_gps import GpsNode
 from thread_control import ControlNode
@@ -19,23 +19,33 @@ def run_uav():
 
     print("ROS init")
     rclpy.init()
+
     reset_uav()
 
-    executor = rclpy.executors.MultiThreadedExecutor()
-    executor.add_node((ImuNode()))
-    executor.add_node((GpsNode()))
-    executor.add_node((ControlNode()))
-    # executor.add_node((GuiNode()))
+    # control = ControlNode()
+    # imu = ImuNode()
 
-    thread = threading.Thread(target=thread_gui)
-    thread.start()
+    executor = rclpy.executors.MultiThreadedExecutor(num_threads=4)
+    # executor.add_node(control)
+    # executor.add_node(imu)
+    # executor.add_node((GpsNode()))
+    executor.add_node((GuiNode()))
+
+    # thread = threading.Thread(target=thread_gui)
+    # thread.start()
 
     try:
         executor.spin()
     except KeyboardInterrupt:
         rover.on = False
         print("\nReceived keyboard interrupt")
-    
+        rclpy.try_shutdown()
+    except ExternalShutdownException:
+        sys.exit(1)
+    finally:
+        rclpy.try_shutdown()
+
+    # thread.join()
 
     # Create threads
     # threads = []

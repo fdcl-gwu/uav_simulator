@@ -2,11 +2,12 @@ from rover import rover
 
 import datetime
 import numpy as np
+import time
 
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Wrench
+from geometry_msgs.msg import WrenchStamped
 from geometry_msgs.msg import Vector3
 
 
@@ -15,13 +16,14 @@ class ControlNode(Node):
         super().__init__('control')
         self.publisher_ = self.create_publisher(Wrench, '/uav/fm', 10)
         
-        timer_period = 0.01  # seconds
+        timer_period = 0.005  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
-        msg = Wrench()
 
-        fM = rover.run_controller()
+        # start = time.time()
+
+        # fM = rover.run_controller()
 
         if (not rover.motor_on) or (rover.mode < 2):
             fM_message = Wrench(force=Vector3(x=0.0, y=0.0, z=0.0), \
@@ -31,6 +33,7 @@ class ControlNode(Node):
                 torque=Vector3(x=fM[1][0], y=fM[2][0], z=fM[3][0]))
 
         self.publisher_.publish(fM_message)
+
 
 
 # def thread_control():

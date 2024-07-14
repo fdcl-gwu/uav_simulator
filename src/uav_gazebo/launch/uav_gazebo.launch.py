@@ -4,10 +4,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
-from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 from scripts import GazeboRosPaths
 
@@ -20,8 +17,7 @@ def generate_launch_description():
 
     model_path, plugin_path, media_path = GazeboRosPaths.get_paths()
 
-    print(plugin_path)
-    print("+++++++++++++++")
+    # print(plugin_path)
 
     env = {
         "GAZEBO_MODEL_PATH": model_path,
