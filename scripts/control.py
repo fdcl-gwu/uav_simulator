@@ -1,12 +1,15 @@
 from matrix_utils import hat, vee, deriv_unit_vector, saturate
 from integral_utils import IntegralError, IntegralErrorVec3
+from rover import rover
 
 import datetime
 import numpy as np
-import pdb
+
+import rclpy
+from rclpy.node import Node
 
 
-class Control:
+class ControlNode(Node):
     """Controller for the UAV trajectory tracking.
 
     This class detemines the control outputs for a quadrotor UAV given it's
@@ -102,6 +105,7 @@ class Control:
     """
 
     def __init__(self):
+        Node.__init__(self, 'control')
 
         self.t0 = datetime.datetime.now() 
         self.t = 0.0

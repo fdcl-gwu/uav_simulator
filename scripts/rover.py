@@ -1,6 +1,4 @@
 from matrix_utils import hat, vee, q_to_R
-from control import Control
-# from estimator import Estimator
 from trajectory import Trajectory
 
 import datetime
@@ -61,9 +59,6 @@ class Rover:
         self.V_R_imu = np.diag([0.01, 0.01, 0.01])
         self.V_x_gps = np.diag([0.01, 0.01, 0.01])
         self.V_v_gps = np.diag([0.01, 0.01, 0.01])
-
-        self.control = Control()
-        self.control.use_integral = True  # Enable integral control
 
         self.a_imu = np.zeros(3)
         self.W_imu = np.zeros(3)

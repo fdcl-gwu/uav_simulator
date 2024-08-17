@@ -194,11 +194,11 @@ class GuiNode(Node, QMainWindow):
         self.label_freq_control.setText(f'CTR: {t_sec:5.1f} Hz')
         self.label_freq_estimator.setText(f'EST: {t_sec:5.1f} Hz')
 
-        # self.update_vbox(self.label_x, rover.x)
-        # self.update_vbox(self.label_v, rover.v)
-        # self.update_vbox(self.label_a, self.a_imu)
-        # self.update_vbox(self.label_R, rover.R)
-        # self.update_vbox(self.label_W, rover.W)
+        self.update_vbox(self.label_x, rover.x)
+        self.update_vbox(self.label_v, rover.v)
+        self.update_vbox(self.label_a, rover.a)
+        self.update_attitude_vbox(self.label_R, rover.R)
+        self.update_vbox(self.label_W, rover.W)
 
         # self.update_vbox(self.label_xd, rover.xd)
         # self.update_vbox(self.label_vd, rover.vd)
@@ -261,20 +261,21 @@ class GuiNode(Node, QMainWindow):
     
 
     def update_vbox(self, labels, data):
-        breakpoint
         for i in range(3):
             labels[i + 1].setText("{:>5.2f}".format(data[i]))
+
+    
+    def update_attitude_vbox(self, labels, data):
+        for i in range(3):
+            for j in range(1, 4):
+                labels[i * 4 + j].setText("{:>5.2f}".format(data[i, j - 1]))
 
 
     def on_btn_close_clicked(self):
         self.get_logger().info("Shutdown button clicked")
-        # self.destroy_node()
         self.destroy_node()
         self.close()
         rclpy.shutdown()
-        # rclpy.shutdown()
-        # self.get_logger().info("Program closed")
-        # raise Exception("Program closed")
 
     
     def on_btn_motor_on_clicked(self):

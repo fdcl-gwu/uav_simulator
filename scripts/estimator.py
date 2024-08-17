@@ -170,6 +170,12 @@ class EstimatorNode(Node):
         self.a_imu_pre = a_imu
         self.W_imu_pre = W_imu
 
+        rover.x = self.x
+        rover.v = self.v
+        rover.a = self.a
+        rover.R = self.R
+        rover.W = self.W
+
 
     def imu_correction(self, R_imu, V_R_imu):
         """IMU correction step of the estimator.
