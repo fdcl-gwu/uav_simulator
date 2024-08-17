@@ -1,10 +1,17 @@
-from matrix_utils import hat, vee, expm_SO3
+from matrix_utils import hat, vee, expm_SO3, q_to_R
+from rover import rover
 
 import datetime
 import numpy as np
 
+import rclpy
+from rclpy.node import Node
 
-class Estimator:
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Imu
+
+
+class EstimatorNode(Node):
     """Estimates the states of the UAV.
 
     This uses the estimator defined in "Real-time Kinematics GPS Based 
@@ -46,6 +53,8 @@ class Estimator:
     """
 
     def __init__(self):
+        Node.__init__(self, 'estimator')
+
         self.x = np.zeros(3)
         self.v = np.zeros(3)
         self.a = np.zeros(3)
@@ -74,6 +83,7 @@ class Estimator:
 
         self.W_pre = np.zeros(3)
         self.a_imu_pre = np.zeros(3)
+        self.W_imu_pre = np.zeros(3)
         self.R_pre = np.eye(3)
         self.b_a_pre = 0.0
 
@@ -93,6 +103,22 @@ class Estimator:
         self.eye10 = np.eye(10)
 
         self.zero3 = np.zeros((3, 3))
+
+        self.V_R_imu = np.diag([0.01, 0.01, 0.01])
+        self.V_x_gps = np.diag([0.01, 0.01, 0.01])
+        self.V_v_gps = np.diag([0.01, 0.01, 0.01])
+
+        # Gazebo uses ENU frame, but NED frame is used in FDCL.
+        # Note that ENU and the NED here refer to their direction order.
+        # ENU: E - axis 1, N - axis 2, U - axis 3
+        # NED: N - axis 1, E - axis 2, D - axis 3
+        self.R_fg = np.array([
+            [1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, -1.0]
+        ])
+
+        self.init_subscribers()
 
 
     def prediction(self, a_imu, W_imu):
@@ -142,6 +168,7 @@ class Estimator:
         self.P = A.dot(self.P).dot(A.T) + F.dot(self.Q).dot(F.T)
 
         self.a_imu_pre = a_imu
+        self.W_imu_pre = W_imu
 
 
     def imu_correction(self, R_imu, V_R_imu):
@@ -241,3 +268,67 @@ class Estimator:
             W: (3x1 numpy array) current angular velocity of the UAV [rad/s]
         """
         return (self.x, self.v, self.a, self.R, self.W)
+    
+
+    def init_subscribers(self):
+        self.sub_imu = self.create_subscription( \
+            Imu,
+            '/uav/imu',
+            self.imu_callback,
+            1)
+        
+        self.sub_gps = self.create_subscription( \
+            Odometry,
+            '/uav/gps',
+            self.gps_callback,
+            1)
+        
+    
+    def imu_callback(self, msg):
+        """Callback function for the IMU subscriber.
+
+        Args:
+            msg: (Imu) IMU message
+        """
+
+        q_gazebo = msg.orientation
+        a_gazebo = msg.linear_acceleration
+        W_gazebo = msg.angular_velocity
+
+        q = np.array([q_gazebo.x, q_gazebo.y, q_gazebo.z, q_gazebo.w])
+
+        R_gi = q_to_R(q) # IMU to Gazebo frame
+        R_fi = self.R_fg.dot(R_gi)  # IMU to FDCL frame (NED freme)
+
+        # FDCL-UAV expects IMU accelerations without gravity.
+        a_i = np.array([a_gazebo.x, a_gazebo.y, a_gazebo.z])
+        a_imu = R_gi.T.dot(R_gi.dot(a_i) - self.ge3)
+
+        W_imu = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
+
+        rover.a_imu = a_imu
+        rover.W_imu = W_imu
+
+        # TODO: get covarainces from the message
+        self.prediction(a_imu, W_imu)
+        self.imu_correction(R_fi, self.V_R_imu)
+
+
+    def gps_callback(self, msg):
+        """Callback function for the GPS subscriber.
+
+        Args:
+            msg: (GPS) GPS message
+        """
+
+        x_gazebo = msg.pose.pose.position
+        v_gazebo = msg.twist.twist.linear
+
+        # Gazebo uses ENU frame, but NED frame is used in FDCL.
+        x_gps = np.array([x_gazebo.x, -x_gazebo.y, -x_gazebo.z])
+        v_gps = np.array([v_gazebo.x, -v_gazebo.y, -v_gazebo.z])
+
+        rover.x_gps = x_gps
+        rover.v_gps = v_gps
+
+        self.gps_correction(x_gps, v_gps, self.V_x_gps, self.V_v_gps)

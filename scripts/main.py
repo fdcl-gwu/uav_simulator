@@ -6,6 +6,7 @@ from gui import GuiNode
 from thread_imu import ImuNode
 from thread_gps import GpsNode
 from thread_control import ControlNode
+from estimator import EstimatorNode
 # from thread_log import thread_log
 
 import numpy as np
@@ -13,47 +14,91 @@ import rclpy
 import std_msgs
 import threading
 import time
+from PyQt5.QtWidgets import QApplication
 
+# run_uav_completed = False
 
-def run_uav():
+# def run_uav():
+#     global run_uav_completed
 
-    print("ROS init")
-    rclpy.init()
+#     print("UAV thread started")
 
-    reset_uav()
+#     reset_uav()
 
-    # control = ControlNode()
-    # imu = ImuNode()
-
-    executor = rclpy.executors.MultiThreadedExecutor(num_threads=4)
-    # executor.add_node(control)
-    # executor.add_node(imu)
-    # executor.add_node((GpsNode()))
-    executor.add_node((GuiNode()))
-
-    # thread = threading.Thread(target=thread_gui)
-    # thread.start()
-
-    try:
-        executor.spin()
-    except KeyboardInterrupt:
-        rover.on = False
-        print("\nReceived keyboard interrupt")
-        rclpy.try_shutdown()
-    except ExternalShutdownException:
-        sys.exit(1)
-    finally:
-        rclpy.try_shutdown()
-
-    # thread.join()
-
-    # Create threads
-    # threads = []
-    # threads.append(threading.Thread(target=thread_gui))
-    # threads.append(threading.Thread(target=thread_log))
+#     executor = rclpy.executors.MultiThreadedExecutor(num_threads=3)
+#     executor.add_node(ControlNode())
+#     executor.add_node(ImuNode())
+#     executor.add_node((GpsNode()))
     
+#     try:
+#         while rclpy.ok():
+#             executor.spin_once()
+#     finally:
+#         print("UAV thread stopping")
+#         executor.shutdown()
     
-    print("ROS shutdown")
+#     run_uav_completed = True
+#     print("UAV thread closed")
+
 
 if __name__ == '__main__':
-    run_uav()
+    print("Main program started")
+
+    rclpy.init()
+
+    app = QApplication([])
+    app.processEvents()
+
+    nodes = []
+    nodes.append(GuiNode())
+    nodes.append(ControlNode())
+    nodes.append(EstimatorNode())
+    nodes.append(GpsNode())
+
+    # Display the GUI
+    nodes[0].show()
+
+    num_nodes = len(nodes)
+
+    executor = rclpy.executors.MultiThreadedExecutor(num_threads=num_nodes)
+    for node in nodes:
+        executor.add_node(node)
+    # executor.add_node(gui)
+    # executor.add_node(ControlNode())
+    # executor.add_node(ImuNode())
+    # executor.add_node(GpsNode())
+
+    # threads = []
+    # threads.append(threading.Thread(target=run_uav))
+
+    # for thread in threads:
+    #     thread.start()
+    
+    while rclpy.ok():
+        executor.spin_once()
+        app.processEvents() 
+        app.quit()
+    # try:
+    #     while rclpy.ok():
+    #         executor.spin_once()
+    #         app.processEvents() 
+    #     app.quit()
+    # except Exception as e:
+    #     print(e)
+    #     print("Closing nodes")
+        
+    # print("GUI node closed")
+    # gui.destroy_node()
+    
+
+    # for thread in threads:
+    #     thread.join()
+    
+    # print("Waiting for all threads to end")
+    # while run_uav_completed:
+    #     time.sleep(1)
+
+    # rclpy.shutdown()
+
+    print("Main program ended")
+    

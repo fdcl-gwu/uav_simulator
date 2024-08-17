@@ -121,16 +121,16 @@ public:
 
     void update_fm(const geometry_msgs::msg::WrenchStamped &msg) const
     {
-        // f[0] = msg.force.x;
-        // f[1] = msg.force.y;
-        // f[2] = msg.force.z;
+        f[0] = msg.wrench.force.x;
+        f[1] = msg.wrench.force.y;
+        f[2] = msg.wrench.force.z;
 
-        // M[0] = msg.torque.x;
-        // M[1] = msg.torque.y;
-        // M[2] = msg.torque.z;
+        M[0] = msg.wrench.torque.x;
+        M[1] = msg.wrench.torque.y;
+        M[2] = msg.wrench.torque.z;
 
-        // no_msg_counter = 0;
-        // print_reset_message = false;
+        no_msg_counter = 0;
+        print_reset_message = false;
     }
 
 

@@ -8,6 +8,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
 
+
 class ImuNode(Node):
 
     def __init__(self):
@@ -15,13 +16,14 @@ class ImuNode(Node):
         self.subscription = self.create_subscription(
             Imu,
             '/uav/imu',
-            self.listener_callback,
+            self.imu_callback,
             1)
         self.t_pre = 0.0
         self.count = 0
 
     def listener_callback(self, msg):
         # print(msg)
+        # self.get_logger().info("IMU")
         self.count = self.count + 1
         t_now = time.time()
 

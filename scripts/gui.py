@@ -6,17 +6,39 @@ import numpy as np
 import os
 import sys
 
+import rclpy
+
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, \
-    QHBoxLayout, QPushButton, QRadioButton
+    QHBoxLayout, QPushButton, QRadioButton, QMainWindow
 
 from rclpy.node import Node
+from rclpy.node import Node
+from sensor_msgs.msg import Imu
 
-class GuiNode(Node):
+class GuiNode(Node, QMainWindow):
     def __init__(self):
-        super().__init__('gui')
+        Node.__init__(self, 'gui')
 
-        app = QApplication([])
+        QMainWindow.__init__(self)
+
+        self.t0 = self.get_clock().now()
+
+        self.R_imu = np.zeros([3, 3])
+        self.a_imu = np.zeros([3, 1])
+        self.w_imu = np.zeros([3, 1])
+
+        self.init_gui()
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update)
+        self.timer.start(1000)
+
+        # self.window.show()
+
+
+    def init_gui(self):
+        # app = QApplication([])
         window = QWidget()
         window.setWindowTitle("FDCL UAV Simulator")
         # window.setGeometry(100, 100, 280, 80)
@@ -28,6 +50,7 @@ class GuiNode(Node):
 
         # Status box
         self.label_time = QLabel("0.0")
+        self.label_time.setMinimumWidth(80)
         self.label_freq_imu = QLabel("0.0")
         self.label_freq_gps = QLabel("0.0")
         self.label_freq_control = QLabel("0.0")
@@ -44,8 +67,10 @@ class GuiNode(Node):
 
         # Control box
         self.button_on = QPushButton("Shutdown")
-        self.button_on.clicked.connect(self.exit)
+        self.button_on.clicked.connect(self.on_btn_close_clicked)
+
         self.button_motor_on = QPushButton("Turn on motors")
+        self.button_motor_on.clicked.connect(self.on_btn_motor_on_clicked)
 
         controls_box = QHBoxLayout()
         controls_box.setAlignment(Qt.AlignLeft)
@@ -71,6 +96,7 @@ class GuiNode(Node):
         flight_mode_box.addWidget(label_flight_mode)
         for i in range(num_flight_modes):
             flight_mode_box.addWidget(self.radio_button_modes[i])
+            self.radio_button_modes[i].toggled.connect(self.on_flight_mode_changed)
 
 
         # State box
@@ -151,13 +177,47 @@ class GuiNode(Node):
         main_layout.addLayout(data_box)
 
         window.setLayout(main_layout)
-        window.show()
+        self.setCentralWidget(window)
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(1000)
+        # return window
 
-        sys.exit(app.exec())
+
+    
+    
+    def update(self):
+        t_now = self.get_clock().now()
+        t_sec = float((t_now - self.t0).to_msg().sec)
+
+        self.label_time.setText(f't: {t_sec:5.1f} s')
+        self.label_freq_imu.setText(f'IMU: {t_sec:5.1f} Hz')
+        self.label_freq_gps.setText(f'GPS: {t_sec:5.1f} Hz')
+        self.label_freq_control.setText(f'CTR: {t_sec:5.1f} Hz')
+        self.label_freq_estimator.setText(f'EST: {t_sec:5.1f} Hz')
+
+        # self.update_vbox(self.label_x, rover.x)
+        # self.update_vbox(self.label_v, rover.v)
+        # self.update_vbox(self.label_a, self.a_imu)
+        # self.update_vbox(self.label_R, rover.R)
+        # self.update_vbox(self.label_W, rover.W)
+
+        # self.update_vbox(self.label_xd, rover.xd)
+        # self.update_vbox(self.label_vd, rover.vd)
+        # self.update_vbox(self.label_b1d, rover.b1d)
+        # self.update_vbox(self.label_Rd, rover.Rd)
+        # self.update_vbox(self.label_Wd, rover.Wd)
+
+        # self.update_vbox(self.label_imu_ypr, rover.imu_ypr)
+
+        self.update_vbox(self.label_imu_a, rover.a_imu)
+        self.update_vbox(self.label_imu_W, rover.W_imu)
+        self.update_vbox(self.label_gps_x, rover.x_gps)
+        self.update_vbox(self.label_gps_v, rover.v_gps)
+
+        # self.update_vbox(self.label_ex, rover.ex)
+        # self.update_vbox(self.label_ev, rover.ev)
+        # self.update_vbox(self.label_fM, rover.fM)
+        # self.update_vbox(self.label_f, rover.f)
+        # # self.update_vbox(self.label_thr, rover.thr)
 
 
     def init_vbox(self, box, name, num):
@@ -198,15 +258,52 @@ class GuiNode(Node):
         labels[8].setText("")
 
         return [box, labels]
+    
+
+    def update_vbox(self, labels, data):
+        breakpoint
+        for i in range(3):
+            labels[i + 1].setText("{:>5.2f}".format(data[i]))
 
 
-    def exit(self):
-        self.get_logger().info("Program closed")
-        sys.exit(0)
+    def on_btn_close_clicked(self):
+        self.get_logger().info("Shutdown button clicked")
+        # self.destroy_node()
+        self.destroy_node()
+        self.close()
+        rclpy.shutdown()
+        # rclpy.shutdown()
+        # self.get_logger().info("Program closed")
+        # raise Exception("Program closed")
 
     
-    def update(self):
-        print(1)
+    def on_btn_motor_on_clicked(self):
+        if rover.motor_on:
+            rover.motor_on = False
+            self.button_motor_on.setText("Turn on motors")
+        else:
+            rover.motor_on = True
+            self.button_motor_on.setText("Turn off motors")
+
+
+    def on_flight_mode_changed(self):
+        for i in range(len(self.radio_button_modes)):
+            if self.radio_button_modes[i].isChecked():
+                self.get_logger().info('Mode switched to {}'.format(i))
+                rover.mode = i
+                rover.x_offset = np.zeros(3)
+                rover.yaw_offset = 0.0
+                break
+
+
+    def on_key_press(self, event):
+        if event.key() == Qt.Key_Q:
+            self.on_btn_close_clicked()
+        elif event.key() == Qt.Key_M:
+            self.on_btn_motor_on_clicked()
+
+
+        
 
 
 class Gui():

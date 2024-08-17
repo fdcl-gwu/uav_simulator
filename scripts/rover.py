@@ -1,6 +1,6 @@
 from matrix_utils import hat, vee, q_to_R
 from control import Control
-from estimator import Estimator
+# from estimator import Estimator
 from trajectory import Trajectory
 
 import datetime
@@ -65,7 +65,13 @@ class Rover:
         self.control = Control()
         self.control.use_integral = True  # Enable integral control
 
-        self.estimator = Estimator()
+        self.a_imu = np.zeros(3)
+        self.W_imu = np.zeros(3)
+
+        self.x_gps = np.zeros(3)
+        self.v_gps = np.zeros(3)
+
+        # self.estimator = Estimator()
         self.trajectory = Trajectory()
 
         self.lock = threading.Lock()
@@ -82,51 +88,52 @@ class Rover:
    
     
     def run_controller(self):
-        self.update_current_time()
+        pass
+        # self.update_current_time()
 
-        with self.lock:
-            states = self.estimator.get_states()
+        # with self.lock:
+        #     states = self.estimator.get_states()
             
-        desired = self.trajectory.get_desired(rover.mode, states, \
-            self.x_offset, self.yaw_offset)
-        fM = self.control.run(states, desired)
+        # desired = self.trajectory.get_desired(rover.mode, states, \
+        #     self.x_offset, self.yaw_offset)
+        # fM = self.control.run(states, desired)
 
-        self.x, self.v, self.a, self.R, self.W = states
+        # self.x, self.v, self.a, self.R, self.W = states
 
-        return fM
-
-
-    def ros_imu_callback(self, message):
-        q_gazebo = message.orientation
-        a_gazebo = message.linear_acceleration
-        W_gazebo = message.angular_velocity
-
-        q = np.array([q_gazebo.x, q_gazebo.y, q_gazebo.z, q_gazebo.w])
-
-        R_gi = q_to_R(q) # IMU to Gazebo frame
-        R_fi = self.R_fg.dot(R_gi)  # IMU to FDCL frame (NED freme)
-
-        # FDCL-UAV expects IMU accelerations without gravity.
-        a_i = np.array([a_gazebo.x, a_gazebo.y, a_gazebo.z])
-        a_i = R_gi.T.dot(R_gi.dot(a_i) - self.ge3)
-
-        W_i = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
-
-        with self.lock:
-            self.estimator.prediction(a_i, W_i)
-            self.estimator.imu_correction(R_fi, self.V_R_imu)
+        # return fM
 
 
-    def ros_gps_callback(self, message):
-        x_gazebo = message.pose.pose.position
-        v_gazebo = message.twist.twist.linear
+    def ros_imu_callback(self, msg):
+        q_gazebo = msg.orientation
+        # a_gazebo = msg.linear_acceleration
+        # W_gazebo = msg.angular_velocity
+
+        # q = np.array([q_gazebo.x, q_gazebo.y, q_gazebo.z, q_gazebo.w])
+
+        # R_gi = q_to_R(q) # IMU to Gazebo frame
+        # R_fi = self.R_fg.dot(R_gi)  # IMU to FDCL frame (NED freme)
+
+        # # FDCL-UAV expects IMU accelerations without gravity.
+        # a_i = np.array([a_gazebo.x, a_gazebo.y, a_gazebo.z])
+        # a_i = R_gi.T.dot(R_gi.dot(a_i) - self.ge3)
+
+        # W_i = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
+
+        # with self.lock:
+        #     self.estimator.prediction(a_i, W_i)
+        #     self.estimator.imu_correction(R_fi, self.V_R_imu)
+
+
+    def ros_gps_callback(self, msg):
+        x_gazebo = msg.pose.pose.position
+        v_gazebo = msg.twist.twist.linear
 
         # Gazebo uses ENU frame, but NED frame is used in FDCL.
         x_g = np.array([x_gazebo.x, -x_gazebo.y, -x_gazebo.z])
         v_g = np.array([v_gazebo.x, -v_gazebo.y, -v_gazebo.z])
 
-        with self.lock:
-            self.estimator.gps_correction(x_g, v_g, self.V_x_gps, self.V_v_gps)
+        # with self.lock:
+        #     self.estimator.gps_correction(x_g, v_g, self.V_x_gps, self.V_v_gps)
 
 
 
