@@ -1,6 +1,5 @@
-from matrix_utils import hat, vee, deriv_unit_vector, saturate
-from integral_utils import IntegralError, IntegralErrorVec3
-from rover import rover
+from .matrix_utils import hat, vee, deriv_unit_vector, saturate
+from .integral_utils import IntegralError, IntegralErrorVec3
 
 import datetime
 import numpy as np
@@ -480,3 +479,20 @@ class ControlNode(Node):
         """
         t_now = datetime.datetime.now()
         return (t_now - self.t0).total_seconds()
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    control = ControlNode()
+
+    try:
+        rclpy.spin(control)
+    except KeyboardInterrupt:
+        pass
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    control.destroy_node()
+    rclpy.shutdown()

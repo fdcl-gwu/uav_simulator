@@ -195,3 +195,12 @@ You only need to do the followings once (unless you change the Gazebo plugins)
 * Currently, unit test only covers the `matrix_utils.py` module. 
 
 `export GAZEBO_PLUGIN_PATH=/home/kani/Documents/uav_simulator/build:$GAZEBO_PLUGIN_PATH`
+
+
+```
+# Building fdcl_uav
+colcon build --packages-select fdcl_uav
+
+# Running fdcl_uav
+cd src/fdcl_uav/launch
+ros2 launch fdcl_uav_launch.py
