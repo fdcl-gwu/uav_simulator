@@ -4,22 +4,20 @@ project(uav_gazebo)
 set(CMAKE_CXX_STANDARD 14)
 
 find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(xacro REQUIRED)
 
 xacro_add_files("urdf/uav.urdf.xacro" INSTALL DESTINATION urdf/)
 
-# ament_export_include_directories(
-#     # ${catkin_INCLUDE_DIRS} 
-#     ${GAZEBO_INCLUDE_DIRS} 
-#     # ${SDFormat_INCLUDE_DIRS}
-# )
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/DesiredData.msg"
+  "msg/ErrorData.msg"
+  "msg/StateData.msg"
+  DEPENDENCIES std_msgs
+ )
 
-# ament_export_dependencies(
-#     gazebo_ros
-# )
-
-install(DIRECTORY launch meshes worlds
-  # urdf
+install(DIRECTORY launch meshes worlds msg
   DESTINATION share/${PROJECT_NAME}
 )
 

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 
-<package format="2">
+<package format="3">
   <name>uav_gazebo</name>
   <version>0.0.0</version>
   <description>FDCL-UAV Gazebo Simulation</description>
@@ -10,19 +10,11 @@
 
   <license>MIT</license>
 
-  <!-- TODO: clean this -->
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <!-- <build_depend>roscpp</build_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>gazebo_ros</build_depend>
-  <run_depend>gazebo_ros</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>rospy</run_depend>
-  <run_depend>std_msgs</run_depend>
-  <run_depend>xacro</run_depend>
-  <run_depend>ros2launch</run_depend> -->
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
 
   <build_depend>xacro</build_depend>
 
@@ -31,6 +23,5 @@
   <export>
     <build_type>ament_cmake</build_type>
     <gazebo_ros gazebo_model_path="${prefix}/.." />
-    <!-- <gazebo_ros plugin_path="${prefix}/../../share" /> -->
   </export>
 </package>

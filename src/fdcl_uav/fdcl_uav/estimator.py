@@ -1,5 +1,7 @@
-from matrix_utils import hat, vee, expm_SO3, q_to_R
-from rover import rover
+from .matrix_utils import hat, vee, expm_SO3, q_to_R
+
+import rclpy
+from rclpy.node import Node
 
 import datetime
 import numpy as np
@@ -9,6 +11,8 @@ from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
+
+from uav_gazebo.msg import StateData
 
 
 class EstimatorNode(Node):
@@ -119,6 +123,7 @@ class EstimatorNode(Node):
         ])
 
         self.init_subscribers()
+        self.init_publishers()
 
 
     def prediction(self, a_imu, W_imu):
@@ -170,11 +175,11 @@ class EstimatorNode(Node):
         self.a_imu_pre = a_imu
         self.W_imu_pre = W_imu
 
-        rover.x = self.x
-        rover.v = self.v
-        rover.a = self.a
-        rover.R = self.R
-        rover.W = self.W
+        # rover.x = self.x
+        # rover.v = self.v
+        # rover.a = self.a
+        # rover.R = self.R
+        # rover.W = self.W
 
 
     def imu_correction(self, R_imu, V_R_imu):
@@ -312,12 +317,12 @@ class EstimatorNode(Node):
 
         W_imu = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
 
-        rover.a_imu = a_imu
-        rover.W_imu = W_imu
-
         # TODO: get covarainces from the message
         self.prediction(a_imu, W_imu)
         self.imu_correction(R_fi, self.V_R_imu)
+
+        self.publish_states()
+
 
 
     def gps_callback(self, msg):
@@ -334,7 +339,42 @@ class EstimatorNode(Node):
         x_gps = np.array([x_gazebo.x, -x_gazebo.y, -x_gazebo.z])
         v_gps = np.array([v_gazebo.x, -v_gazebo.y, -v_gazebo.z])
 
-        rover.x_gps = x_gps
-        rover.v_gps = v_gps
-
         self.gps_correction(x_gps, v_gps, self.V_x_gps, self.V_v_gps)
+        self.publish_states()
+        
+
+
+    def init_publishers(self):
+        self.pub_state = self.create_publisher(StateData, '/uav/state', 1)
+
+    
+    def publish_states(self):
+        states = StateData()
+        for i in range(3):
+            states.position[i] = self.x[i]
+            states.velocity[i] = self.v[i]
+            states.acceleration[i] = self.a[i]
+            states.angular_velocity[i] = self.W[i]
+
+            for j in range(3):
+                states.attitude[3*i + j] = self.R[i, j]
+
+        self.pub_state.publish(states)
+
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    estimator = EstimatorNode()
+
+    try:
+        rclpy.spin(estimator)
+    except KeyboardInterrupt:
+        pass
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    estimator.destroy_node()
+    rclpy.shutdown()
