@@ -126,15 +126,19 @@ class TrajectoryNode(Node):
     def publish_trajectory(self):
 
         msg = DesiredData()
-        msg.position = self.xd
-        msg.velocity = self.xd_dot
-        msg.acceleration = self.xd_2dot
-        msg.jerk = self.xd_3dot
-        msg.snap = self.xd_4dot
 
-        msg.b1 = self.b1d
-        msg.b1_dot = self.b1d_dot
-        msg.b1_2dot = self.b1d_2dot
+        for i in range(3):
+            msg.position[i] = self.xd[i]
+            msg.velocity[i] = self.xd_dot[i]
+            msg.acceleration[i] = self.xd_2dot[i]
+            msg.jerk[i] = self.xd_3dot[i]
+            msg.snap[i] = self.xd_4dot[i]
+
+            msg.b1[i] = self.b1d[i]
+            msg.b1_dot[i] = self.b1d_dot[i]
+            msg.b1_2dot[i] = self.b1d_2dot[i]
+
+        msg.is_landed = self.is_landed
 
         self.pub_trajectory.publish(msg)
 

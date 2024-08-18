@@ -14,7 +14,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Int32
 
-from uav_gazebo.msg import StateData
+from uav_gazebo.msg import StateData, DesiredData
 
 
 class GuiNode(Node, QMainWindow):
@@ -29,6 +29,16 @@ class GuiNode(Node, QMainWindow):
         self.a = np.zeros(3)
         self.R = np.identity(3)
         self.W = np.zeros(3)
+
+         # Desired states
+        self.xd = np.zeros(3)
+        self.vd = np.zeros(3)
+
+        self.b1d = np.zeros(3)
+        self.b1d[0] = 1.0
+
+        self.Rd = np.identity(3)
+        self.Wd = np.zeros(3)
 
         self.R_imu = np.zeros([3, 3])
         self.a_imu = np.zeros([3, 1])
@@ -203,6 +213,12 @@ class GuiNode(Node, QMainWindow):
             self.states_callback,
             1)
         
+        self.sub_desired = self.create_subscription( \
+            DesiredData,
+            '/uav/desired',
+            self.desired_callback,
+            1)
+        
         self.sub_imu = self.create_subscription( \
             Imu,
             '/uav/imu',
@@ -236,24 +252,24 @@ class GuiNode(Node, QMainWindow):
         self.update_attitude_vbox(self.label_R, self.R)
         self.update_vbox(self.label_W, self.W)
 
-        # self.update_vbox(self.label_xd, rover.xd)
-        # self.update_vbox(self.label_vd, rover.vd)
-        # self.update_vbox(self.label_b1d, rover.b1d)
-        # self.update_vbox(self.label_Rd, rover.Rd)
-        # self.update_vbox(self.label_Wd, rover.Wd)
+        self.update_vbox(self.label_xd, self.xd)
+        self.update_vbox(self.label_vd, self.vd)
+        self.update_vbox(self.label_b1d, self.b1d)
+        self.update_attitude_vbox(self.label_Rd, self.Rd)
+        self.update_vbox(self.label_Wd, self.Wd)
 
-        # self.update_vbox(self.label_imu_ypr, rover.imu_ypr)
+        # self.update_vbox(self.label_imu_ypr, self.imu_ypr)
 
         self.update_vbox(self.label_imu_a, self.a_imu)
         self.update_vbox(self.label_imu_W, self.W_imu)
         self.update_vbox(self.label_gps_x, self.x_gps)
         self.update_vbox(self.label_gps_v, self.v_gps)
 
-        # self.update_vbox(self.label_ex, rover.ex)
-        # self.update_vbox(self.label_ev, rover.ev)
-        # self.update_vbox(self.label_fM, rover.fM)
-        # self.update_vbox(self.label_f, rover.f)
-        # # self.update_vbox(self.label_thr, rover.thr)
+        # self.update_vbox(self.label_ex, self.ex)
+        # self.update_vbox(self.label_ev, self.ev)
+        # self.update_vbox(self.label_fM, self.fM)
+        # self.update_vbox(self.label_f, self.f)
+        # # self.update_vbox(self.label_thr, self.thr)
 
 
     def init_vbox(self, box, name, num):
@@ -361,6 +377,23 @@ class GuiNode(Node, QMainWindow):
 
             for j in range(3):
                 self.R[i, j] = msg.attitude[3*i + j]
+
+
+    def desired_callback(self, msg):
+        """Callback function for the desired subscriber.
+
+        Args:
+            msg: (DesiredData) Desired data message
+        """
+
+        for i in range(3):
+            self.xd[i] = msg.position[i]
+            self.vd[i] = msg.velocity[i]
+            self.b1d[i] = msg.b1[i]
+            self.Wd[i] = msg.angular_velocity[i]
+
+            for j in range(3):
+                self.Rd[i, j] = msg.attitude[3*i + j]
 
     
     def imu_callback(self, msg):

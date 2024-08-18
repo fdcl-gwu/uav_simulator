@@ -24,3 +24,5 @@ float64[3] b3_2dot
 # Decoupled-yaw controller
 float64 wc3
 float64 wc3_dot
+
+bool is_landed

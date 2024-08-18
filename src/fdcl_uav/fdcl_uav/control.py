@@ -7,6 +7,11 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
+from geometry_msgs.msg import Vector3, WrenchStamped
+from std_msgs.msg import Int32
+
+from uav_gazebo.msg import DesiredData
+
 
 class ControlNode(Node):
     """Controller for the UAV trajectory tracking.
@@ -203,8 +208,15 @@ class ControlNode(Node):
 
         self.sat_sigma = 1.8
 
+        self.is_landed = True
+        self.mode = 0
+        self.motor_on = False
 
-    def run(self, states, desired):
+        self.init_subscribers()
+        self.init_publishers()
+
+
+    def control_run(self):
         """Run the controller to get the force-moments required to achieve the 
         the desired states from the current state.
 
@@ -217,19 +229,27 @@ class ControlNode(Node):
             fM: (4x1 numpy array) force-moments vector
         """
 
-        self.x, self.v, self.a, self.R, self.W = states
-        self.xd, self.xd_dot, self.xd_2dot, self.xd_3dot, self.xd_4dot, \
-            self.b1d, self.b1d_dot, self.b1d_2dot, is_landed = desired
-
         # If the UAV is landed, do not run the controller and produce zero
         # force-moments.
-        if is_landed:
-            return np.zeros(4)
-            
-        self.position_control()
-        self.attitude_control()
+        if self.is_landed:
+            self.fM = np.zeros(4)
+        else: 
+            self.position_control()
+            self.attitude_control()
 
-        return self.fM
+        if (not self.motor_on) or (self.mode < 2):
+            force = Vector3(x=0.0, y=0.0, z=0.0)
+            torque = Vector3(x=0.0, y=0.0, z=0.0)
+            
+        else:
+            force = Vector3(x=0.0, y=0.0, z=self.fM[0][0])
+            torque = Vector3(x=self.fM[1][0], y=self.fM[2][0], z=self.fM[3][0])
+            
+        fM_message = WrenchStamped(force=force, torque=torque)
+        self.pub_fM.publish(fM_message)
+
+        self.publish_desired()
+        
 
 
     def position_control(self):
@@ -479,6 +499,91 @@ class ControlNode(Node):
         """
         t_now = datetime.datetime.now()
         return (t_now - self.t0).total_seconds()
+    
+
+
+    def init_publishers(self):
+        self.pub_desired = self.create_publisher(DesiredData, '/uav/desired', 1)
+        self.pub_fM = self.create_publisher(WrenchStamped, '/uav/fm', 1)
+
+        timer_period = 0.0005
+        self.timer = self.create_timer(timer_period, self.control_run)
+    
+
+    def init_subscribers(self):
+        self.sub_trajectory = self.create_subscription( \
+            DesiredData,
+            '/uav/trajectory', 
+            self.trajectory_callback, 
+            1)
+        
+        self.sub_mode = self.create_subscription( \
+            Int32,
+            '/uav/mode',
+            self.mode_callback,
+            1)
+    
+
+    def mode_callback(self, msg):
+        self.mode = msg.data
+        self.get_logger().info('Mode switched to {}'.format(self.mode))
+
+    def trajectory_callback(self, msg):
+        """Callback function for the trajectory subscriber.
+
+        Args:
+            msg: (StateData) Trajectory data message
+        """
+
+        for i in range(3):
+            self.xd[i] = msg.position[i]
+            self.xd_dot[i] = msg.velocity[i]
+            self.xd_2dot[i] = msg.acceleration[i]
+            self.xd_3dot[i] = msg.jerk[i]
+            self.xd_4dot[i] = msg.snap[i]
+
+            self.b1d[i] = msg.b1[i]
+            self.b1d_dot[i] = msg.b1_dot[i]
+            self.b1d_2dot[i] = msg.b1_2dot[i]
+
+        self.is_landed = msg.is_landed
+
+    
+    def publish_desired(self):
+        """Publish the desired states."""
+
+        msg = DesiredData()
+
+        for i in range(3):
+            msg.position[i] = self.xd[i]
+            msg.velocity[i] = self.xd_dot[i]
+            msg.acceleration[i] = self.xd_2dot[i]
+            msg.jerk[i] = self.xd_3dot[i]
+            msg.snap[i] = self.xd_4dot[i]
+
+            msg.b1[i] = self.b1d[i]
+            msg.b1_dot[i] = self.b1d_dot[i]
+            msg.b1_2dot[i] = self.b1d_2dot[i]
+
+            msg.angular_velocity[i] = self.Wd[i]
+            msg.angular_acceleration[i] = self.Wd_dot[i]
+            # msg.angular_jerk = self.Wd_2dot
+
+            msg.b1c[i] = self.b1c[i]
+
+            msg.b3[i] = self.b3d[i]
+            msg.b3_dot[i] = self.b3d_dot[i]
+            msg.b3_2dot[i] = self.b3d_2dot[i]
+
+            for j in range(3):
+                msg.attitude[3*i + j] = self.Rd[i, j]
+
+        msg.wc3 = self.wc3
+        msg.wc3_dot = self.wc3_dot
+        
+        msg.is_landed = self.is_landed
+
+        self.pub_desired.publish(msg)
 
 
 def main(args=None):
