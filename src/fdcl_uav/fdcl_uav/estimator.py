@@ -345,7 +345,7 @@ class EstimatorNode(Node):
 
 
     def init_publishers(self):
-        self.pub_state = self.create_publisher(StateData, '/uav/state', 1)
+        self.pub_state = self.create_publisher(StateData, '/uav/states', 1)
 
     
     def publish_states(self):

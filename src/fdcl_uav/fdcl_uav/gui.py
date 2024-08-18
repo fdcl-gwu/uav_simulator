@@ -1,34 +1,46 @@
-from rover import rover
-from plot_utils import plot_data
+from .matrix_utils import q_to_R
 
-import gi
 import numpy as np
 import os
-import sys
-
-import rclpy
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, \
     QHBoxLayout, QPushButton, QRadioButton, QMainWindow
 
+import rclpy
 from rclpy.node import Node
-from rclpy.node import Node
+
+from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
+
+from uav_gazebo.msg import StateData
+
 
 class GuiNode(Node, QMainWindow):
     def __init__(self):
         Node.__init__(self, 'gui')
-
         QMainWindow.__init__(self)
 
         self.t0 = self.get_clock().now()
 
+        self.x = np.zeros(3)
+        self.v = np.zeros(3)
+        self.a = np.zeros(3)
+        self.R = np.identity(3)
+        self.W = np.zeros(3)
+
         self.R_imu = np.zeros([3, 3])
         self.a_imu = np.zeros([3, 1])
-        self.w_imu = np.zeros([3, 1])
+        self.W_imu = np.zeros([3, 1])
+
+        self.x_gps = np.zeros([3, 1])
+        self.v_gps = np.zeros([3, 1])
+
+        self.g = 9.81
+        self.ge3 = np.array([0.0, 0.0, self.g])
 
         self.init_gui()
+        self.init_subscribers()
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
@@ -181,7 +193,26 @@ class GuiNode(Node, QMainWindow):
 
         # return window
 
+    def init_subscribers(self):
 
+        self.sub_states = self.create_subscription( \
+            StateData,
+            '/uav/states',
+            self.states_callback,
+            1)
+        
+        self.sub_imu = self.create_subscription( \
+            Imu,
+            '/uav/imu',
+            self.imu_callback,
+            1)
+        
+        self.sub_gps = self.create_subscription( \
+            Odometry,
+            '/uav/gps',
+            self.gps_callback,
+            1)
+            
     
     
     def update(self):
@@ -194,11 +225,11 @@ class GuiNode(Node, QMainWindow):
         self.label_freq_control.setText(f'CTR: {t_sec:5.1f} Hz')
         self.label_freq_estimator.setText(f'EST: {t_sec:5.1f} Hz')
 
-        self.update_vbox(self.label_x, rover.x)
-        self.update_vbox(self.label_v, rover.v)
-        self.update_vbox(self.label_a, rover.a)
-        self.update_attitude_vbox(self.label_R, rover.R)
-        self.update_vbox(self.label_W, rover.W)
+        self.update_vbox(self.label_x, self.x)
+        self.update_vbox(self.label_v, self.v)
+        self.update_vbox(self.label_a, self.a)
+        self.update_attitude_vbox(self.label_R, self.R)
+        self.update_vbox(self.label_W, self.W)
 
         # self.update_vbox(self.label_xd, rover.xd)
         # self.update_vbox(self.label_vd, rover.vd)
@@ -208,10 +239,10 @@ class GuiNode(Node, QMainWindow):
 
         # self.update_vbox(self.label_imu_ypr, rover.imu_ypr)
 
-        self.update_vbox(self.label_imu_a, rover.a_imu)
-        self.update_vbox(self.label_imu_W, rover.W_imu)
-        self.update_vbox(self.label_gps_x, rover.x_gps)
-        self.update_vbox(self.label_gps_v, rover.v_gps)
+        self.update_vbox(self.label_imu_a, self.a_imu)
+        self.update_vbox(self.label_imu_W, self.W_imu)
+        self.update_vbox(self.label_gps_x, self.x_gps)
+        self.update_vbox(self.label_gps_v, self.v_gps)
 
         # self.update_vbox(self.label_ex, rover.ex)
         # self.update_vbox(self.label_ev, rover.ev)
@@ -279,22 +310,24 @@ class GuiNode(Node, QMainWindow):
 
     
     def on_btn_motor_on_clicked(self):
-        if rover.motor_on:
-            rover.motor_on = False
-            self.button_motor_on.setText("Turn on motors")
-        else:
-            rover.motor_on = True
-            self.button_motor_on.setText("Turn off motors")
+        pass
+        # if rover.motor_on:
+        #     rover.motor_on = False
+        #     self.button_motor_on.setText("Turn on motors")
+        # else:
+        #     rover.motor_on = True
+        #     self.button_motor_on.setText("Turn off motors")
 
 
     def on_flight_mode_changed(self):
-        for i in range(len(self.radio_button_modes)):
-            if self.radio_button_modes[i].isChecked():
-                self.get_logger().info('Mode switched to {}'.format(i))
-                rover.mode = i
-                rover.x_offset = np.zeros(3)
-                rover.yaw_offset = 0.0
-                break
+        pass
+        # for i in range(len(self.radio_button_modes)):
+        #     if self.radio_button_modes[i].isChecked():
+        #         self.get_logger().info('Mode switched to {}'.format(i))
+        #         rover.mode = i
+        #         rover.x_offset = np.zeros(3)
+        #         rover.yaw_offset = 0.0
+        #         break
 
 
     def on_key_press(self, event):
@@ -304,7 +337,70 @@ class GuiNode(Node, QMainWindow):
             self.on_btn_motor_on_clicked()
 
 
-        
+    def states_callback(self, msg):
+        """Callback function for the states subscriber.
+
+        Args:
+            msg: (StateData) State data message
+        """
+       
+        for i in range(3):
+            self.x[i] = msg.position[i]
+            self.v[i] = msg.velocity[i]
+            self.a[i] = msg.acceleration[i]
+            self.W[i] = msg.angular_velocity[i]
+
+            for j in range(3):
+                self.R[i, j] = msg.attitude[3*i + j]
+
+    
+    def imu_callback(self, msg):
+        """Callback function for the IMU subscriber.
+
+        Args:
+            msg: (Imu) IMU message
+        """
+
+        # Gazebo uses ENU frame, but NED frame is used in FDCL.
+        # Note that ENU and the NED here refer to their direction order.
+        # ENU: E - axis 1, N - axis 2, U - axis 3
+        # NED: N - axis 1, E - axis 2, D - axis 3
+        self.R_fg = np.array([
+            [1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, -1.0]
+        ])
+
+        q_gazebo = msg.orientation
+        a_gazebo = msg.linear_acceleration
+        W_gazebo = msg.angular_velocity
+
+        q = np.array([q_gazebo.x, q_gazebo.y, q_gazebo.z, q_gazebo.w])
+
+        R_gi = q_to_R(q) # IMU to Gazebo frame
+        R_fi = self.R_fg.dot(R_gi)  # IMU to FDCL frame (NED freme)
+
+        # FDCL-UAV expects IMU accelerations without gravity.
+        a_i = np.array([a_gazebo.x, a_gazebo.y, a_gazebo.z])
+        self.a_imu = R_gi.T.dot(R_gi.dot(a_i) - self.ge3)
+
+        self.W_imu = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
+
+
+
+    def gps_callback(self, msg):
+        """Callback function for the GPS subscriber.
+
+        Args:
+            msg: (GPS) GPS message
+        """
+
+        x_gazebo = msg.pose.pose.position
+        v_gazebo = msg.twist.twist.linear
+
+        # Gazebo uses ENU frame, but NED frame is used in FDCL.
+        self.x_gps = np.array([x_gazebo.x, -x_gazebo.y, -x_gazebo.z])
+        self.v_gps = np.array([v_gazebo.x, -v_gazebo.y, -v_gazebo.z])
 
 
 class Gui():
@@ -507,16 +603,32 @@ class Gui():
                 grid[k].set_text('{:8.2f}'.format(data[i, j]))
 
 
-def thread_gui():
-    print('GUI: starting thread ..')
+def main(args=None):
+    rclpy.init(args=args)
 
-    gui = Gui()
-    GLib.idle_add(gui.update_gui)
-    Gtk.main()
+    app = QApplication([])
+    app.processEvents()
 
-    rover.on = False
-    print('GUI: thread closed!')
+    gui = GuiNode()
+    gui.show()
 
+    executor = rclpy.executors.SingleThreadedExecutor()
+    executor.add_node(gui)
 
-if __name__=='__main__':
-    thread_gui()
+    # try:
+    while rclpy.ok():
+        executor.spin_once()
+        app.processEvents()
+        app.quit()
+
+    # app.quit()
+
+    # except KeyboardInterrupt:
+    #     pass
+    
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    gui.destroy_node()
+    rclpy.shutdown()
