@@ -25,6 +25,7 @@ setup(
         'console_scripts': [
             'estimator = fdcl_uav.estimator:main',
             'control = fdcl_uav.control:main',
+            'trajectory = fdcl_uav.trajectory:main',
             'gui = fdcl_uav.gui:main',
         ],
     },

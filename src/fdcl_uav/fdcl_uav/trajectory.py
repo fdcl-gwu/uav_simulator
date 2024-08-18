@@ -1,10 +1,18 @@
 import datetime
 import numpy as np
-import pdb
 
+import rclpy
+from rclpy.node import Node
 
-class Trajectory:
+from std_msgs.msg import Int32
+
+from uav_gazebo.msg import StateData, DesiredData
+
+class TrajectoryNode(Node):
+
     def __init__(self):
+        Node.__init__(self, 'trajectory')
+
         self.mode = 0
         self.is_mode_changed = False
         self.is_landed = False
@@ -65,27 +73,73 @@ class Trajectory:
 
         self.e1 = np.array([1.0, 0.0, 0.0])
 
+        self.init_subscribers()
+        self.init_publishers()
 
-    def get_desired(self, mode, states, x_offset, yaw_offset):
-        self.x, self.v, self.a, self.R, self.W = states
-        self.x_offset = x_offset
-        self.yaw_offset = yaw_offset
 
-        if mode == self.mode:
-            self.is_mode_changed = False
-        else:
-            self.is_mode_changed = True
-            self.mode = mode
-            self.mark_traj_start()
+    def init_subscribers(self):
 
-        self.calculate_desired()
+        self.sub_states = self.create_subscription( \
+            StateData,
+            '/uav/states',
+            self.states_callback,
+            1)
+        
+        self.sub_mode = self.create_subscription( \
+            Int32,
+            '/uav/mode',
+            self.mode_callback,
+            1)
+    
 
-        desired = (self.xd, self.xd_dot, self.xd_2dot, self.xd_3dot, \
-            self.xd_4dot, self.b1d, self.b1d_dot, self.b1d_2dot, self.is_landed)
-        return desired
+    def init_publishers(self):
+
+        self.pub_trajectory = self.create_publisher( \
+            DesiredData,
+            '/uav/trajectory',
+            1)
+
+
+    def states_callback(self, msg):
+
+        for i in range(3):
+            self.x[i] = msg.position[i]
+            self.v[i] = msg.velocity[i]
+            self.a[i] = msg.acceleration[i]
+            self.W[i] = msg.angular_velocity[i]
+
+            for j in range(3):
+                self.R[i, j] = msg.attitude[3*i + j]
+
+        self.calculate_trajectory()
+        self.publish_trajectory()
 
     
-    def calculate_desired(self):
+    def mode_callback(self, msg):
+        self.mode = msg.data
+        self.get_logger().info('Mode switched to {}'.format(self.mode))
+
+        self.is_mode_changed = True
+        self.mark_traj_start()
+
+
+    def publish_trajectory(self):
+
+        msg = DesiredData()
+        msg.position = self.xd
+        msg.velocity = self.xd_dot
+        msg.acceleration = self.xd_2dot
+        msg.jerk = self.xd_3dot
+        msg.snap = self.xd_4dot
+
+        msg.b1 = self.b1d
+        msg.b1_dot = self.b1d_dot
+        msg.b1_2dot = self.b1d_2dot
+
+        self.pub_trajectory.publish(msg)
+
+    
+    def calculate_trajectory(self):
         if self.manual_mode:
             self.manual()
             return
@@ -326,3 +380,23 @@ class Trajectory:
                 w_b1d * w_b1d * np.sin(th_b1d), 0.0])
         else:
             self.mark_traj_end(True)
+
+
+def main(args=None):
+    print("Starting trajectory node")
+
+    rclpy.init(args=args)
+
+    trajectory = TrajectoryNode()
+
+    try:
+        rclpy.spin(trajectory)
+    except KeyboardInterrupt:
+        pass
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    trajectory.destroy_node()
+
+    print("Terminating trajectory node")

@@ -482,6 +482,8 @@ class ControlNode(Node):
 
 
 def main(args=None):
+    print("Starting control node")
+
     rclpy.init(args=args)
 
     control = ControlNode()
@@ -495,4 +497,5 @@ def main(args=None):
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
     control.destroy_node()
-    rclpy.shutdown()
+    
+    print("Terminating control node")

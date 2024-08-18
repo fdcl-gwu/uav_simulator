@@ -17,6 +17,12 @@ def generate_launch_description():
         ),
         Node(
             package='fdcl_uav',
+            namespace='trajectory',
+            executable='trajectory',
+            name='sim'
+        ),
+        Node(
+            package='fdcl_uav',
             namespace='gui',
             executable='gui',
             name='sim'

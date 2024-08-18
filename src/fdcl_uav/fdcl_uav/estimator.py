@@ -364,6 +364,8 @@ class EstimatorNode(Node):
 
 
 def main(args=None):
+    print("Starting estimator node")
+
     rclpy.init(args=args)
 
     estimator = EstimatorNode()
@@ -377,4 +379,5 @@ def main(args=None):
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
     estimator.destroy_node()
-    rclpy.shutdown()
+
+    print("Terminating estimator node")

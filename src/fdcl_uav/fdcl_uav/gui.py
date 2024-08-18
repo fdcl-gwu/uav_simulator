@@ -12,6 +12,7 @@ from rclpy.node import Node
 
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
+from std_msgs.msg import Int32
 
 from uav_gazebo.msg import StateData
 
@@ -41,6 +42,7 @@ class GuiNode(Node, QMainWindow):
 
         self.init_gui()
         self.init_subscribers()
+        self.init_publishers()
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
@@ -212,7 +214,10 @@ class GuiNode(Node, QMainWindow):
             '/uav/gps',
             self.gps_callback,
             1)
-            
+
+
+    def init_publishers(self):
+        self.pub_mode = self.create_publisher(Int32, '/uav/mode', 1) 
     
     
     def update(self):
@@ -321,13 +326,17 @@ class GuiNode(Node, QMainWindow):
 
     def on_flight_mode_changed(self):
         pass
-        # for i in range(len(self.radio_button_modes)):
-        #     if self.radio_button_modes[i].isChecked():
-        #         self.get_logger().info('Mode switched to {}'.format(i))
-        #         rover.mode = i
-        #         rover.x_offset = np.zeros(3)
-        #         rover.yaw_offset = 0.0
-        #         break
+        for i in range(len(self.radio_button_modes)):
+            if self.radio_button_modes[i].isChecked():
+                self.get_logger().info('Mode switched to {}'.format(i))
+                
+                msg = Int32()
+                msg.data = i
+                self.pub_mode.publish(msg)
+
+                # rover.x_offset = np.zeros(3)
+                # rover.yaw_offset = 0.0
+                break
 
 
     def on_key_press(self, event):
@@ -604,6 +613,8 @@ class Gui():
 
 
 def main(args=None):
+    print("Starting gui node")
+
     rclpy.init(args=args)
 
     app = QApplication([])
@@ -615,20 +626,17 @@ def main(args=None):
     executor = rclpy.executors.SingleThreadedExecutor()
     executor.add_node(gui)
 
-    # try:
     while rclpy.ok():
         executor.spin_once()
         app.processEvents()
-        app.quit()
-
-    # app.quit()
-
-    # except KeyboardInterrupt:
-    #     pass
     
+    app.quit()
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
     gui.destroy_node()
-    rclpy.shutdown()
+    
+    # rclpy.shutdown()
+    
+    print("Terminating gui node")
