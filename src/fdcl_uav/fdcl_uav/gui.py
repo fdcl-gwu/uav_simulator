@@ -10,11 +10,12 @@ from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, \
 import rclpy
 from rclpy.node import Node
 
+from geometry_msgs.msg import WrenchStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Int32
 
-from uav_gazebo.msg import StateData, DesiredData
+from uav_gazebo.msg import StateData, DesiredData, ErrorData
 
 
 class GuiNode(Node, QMainWindow):
@@ -24,6 +25,9 @@ class GuiNode(Node, QMainWindow):
 
         self.t0 = self.get_clock().now()
 
+        self.motor_on = False
+
+        # States
         self.x = np.zeros(3)
         self.v = np.zeros(3)
         self.a = np.zeros(3)
@@ -33,19 +37,35 @@ class GuiNode(Node, QMainWindow):
          # Desired states
         self.xd = np.zeros(3)
         self.vd = np.zeros(3)
-
         self.b1d = np.zeros(3)
         self.b1d[0] = 1.0
-
         self.Rd = np.identity(3)
         self.Wd = np.zeros(3)
 
+        # Errors
+        self.ex = np.zeros(3)
+        self.ev = np.zeros(3)
+        self.eR = np.identity(3)
+        self.eW = np.zeros(3)
+        self.eIX = np.zeros(3)
+        self.eIR = np.zeros(3)
+
+        # Sensor measurements
         self.R_imu = np.zeros([3, 3])
         self.a_imu = np.zeros([3, 1])
         self.W_imu = np.zeros([3, 1])
 
         self.x_gps = np.zeros([3, 1])
         self.v_gps = np.zeros([3, 1])
+
+        # Motor forces
+        self.fM = np.zeros(4)
+
+        # Manual mode
+        self.x_offset = np.zeros(3)
+        self.x_offset_delta = 0.1
+        self.yaw_offset = 0.0
+        self.yaw_offset_delta = 0.02
 
         self.g = 9.81
         self.ge3 = np.array([0.0, 0.0, self.g])
@@ -58,19 +78,13 @@ class GuiNode(Node, QMainWindow):
         self.timer.timeout.connect(self.update)
         self.timer.start(1000)
 
-        # self.window.show()
-
 
     def init_gui(self):
-        # app = QApplication([])
         window = QWidget()
         window.setWindowTitle("FDCL UAV Simulator")
-        # window.setGeometry(100, 100, 280, 80)
 
         main_layout = QVBoxLayout()
         main_layout.setSpacing(10)
-        # main_layout.setMargin(10)
-
 
         # Status box
         self.label_time = QLabel("0.0")
@@ -88,7 +102,6 @@ class GuiNode(Node, QMainWindow):
         thread_status_box.addWidget(self.label_freq_control)
         thread_status_box.addWidget(self.label_freq_estimator)
 
-
         # Control box
         self.button_on = QPushButton("Shutdown")
         self.button_on.clicked.connect(self.on_btn_close_clicked)
@@ -101,7 +114,6 @@ class GuiNode(Node, QMainWindow):
         controls_box.addWidget(self.button_on)
         controls_box.addWidget(self.button_motor_on)
 
-
         # Flight mode box
         label_flight_mode = QLabel("Mode: ")
         self.radio_button_modes = \
@@ -111,7 +123,8 @@ class GuiNode(Node, QMainWindow):
                 QRadioButton("Take-off"), \
                 QRadioButton("Stay"), \
                 QRadioButton("Manual"), \
-                QRadioButton("Circle") \
+                QRadioButton("Circle"), \
+                QRadioButton("Land") \
             ]
         num_flight_modes = len(self.radio_button_modes)
         
@@ -121,7 +134,6 @@ class GuiNode(Node, QMainWindow):
         for i in range(num_flight_modes):
             flight_mode_box.addWidget(self.radio_button_modes[i])
             self.radio_button_modes[i].toggled.connect(self.on_flight_mode_changed)
-
 
         # State box
         state_box = QHBoxLayout()
@@ -133,7 +145,6 @@ class GuiNode(Node, QMainWindow):
         [state_box, self.label_R] = self.init_attitude_vbox(state_box, "R")
         [state_box, self.label_W] = self.init_vbox(state_box, "W", 4)
 
-
         # Desired box
         desired_box = QHBoxLayout()
         desired_box.setAlignment(Qt.AlignLeft)
@@ -143,7 +154,6 @@ class GuiNode(Node, QMainWindow):
         [desired_box, self.label_b1d] = self.init_vbox(desired_box, "b1d", 4)
         [desired_box, self.label_Rd] = self.init_attitude_vbox(desired_box, "Rd")
         [desired_box, self.label_Wd] = self.init_vbox(desired_box, "Wd", 4)
-
 
         # Sensor box
         sensor_box = QHBoxLayout()
@@ -155,17 +165,15 @@ class GuiNode(Node, QMainWindow):
         [sensor_box, self.label_gps_x] = self.init_vbox(sensor_box, "GPS x", 4)
         [sensor_box, self.label_gps_v] = self.init_vbox(sensor_box, "GPS v", 4)
 
-
         # Error box
         error_box = QHBoxLayout()
         error_box.setAlignment(Qt.AlignLeft)
         error_box.addSpacing(5)
         [error_box, self.label_ex] = self.init_vbox(error_box, "ex", 4)
         [error_box, self.label_ev] = self.init_vbox(error_box, "ev", 4)
-        [error_box, self.label_fM] = self.init_vbox(error_box, "f-M", 4)
-        [error_box, self.label_f] = self.init_vbox(error_box, "f", 4)
-        [error_box, self.label_thr] = self.init_vbox(error_box, "Throttle", 4)
-
+        [error_box, self.label_fM] = self.init_vbox(error_box, "f-M", 5)
+        # [error_box, self.label_f] = self.init_vbox(error_box, "f", 5)
+        # [error_box, self.label_thr] = self.init_vbox(error_box, "Throttle", 5)
 
         # Left box
         left_box = QVBoxLayout()
@@ -174,7 +182,6 @@ class GuiNode(Node, QMainWindow):
         left_box.addLayout(state_box)
         main_layout.addSpacing(10)
         left_box.addLayout(desired_box)
-
 
         # Right box
         right_box = QVBoxLayout()
@@ -202,8 +209,7 @@ class GuiNode(Node, QMainWindow):
 
         window.setLayout(main_layout)
         self.setCentralWidget(window)
-
-        # return window
+        window.keyPressEvent = self.on_key_press
 
     def init_subscribers(self):
 
@@ -217,6 +223,18 @@ class GuiNode(Node, QMainWindow):
             DesiredData,
             '/uav/desired',
             self.desired_callback,
+            1)
+        
+        self.sub_errors = self.create_subscription( \
+            ErrorData,
+            '/uav/errors',
+            self.errors_callback,
+            1)
+
+        self.sub_fM = self.create_subscription( \
+            WrenchStamped,
+            '/uav/fm',
+            self.fM_callback,
             1)
         
         self.sub_imu = self.create_subscription( \
@@ -258,6 +276,7 @@ class GuiNode(Node, QMainWindow):
         self.update_attitude_vbox(self.label_Rd, self.Rd)
         self.update_vbox(self.label_Wd, self.Wd)
 
+        # TODO
         # self.update_vbox(self.label_imu_ypr, self.imu_ypr)
 
         self.update_vbox(self.label_imu_a, self.a_imu)
@@ -265,11 +284,12 @@ class GuiNode(Node, QMainWindow):
         self.update_vbox(self.label_gps_x, self.x_gps)
         self.update_vbox(self.label_gps_v, self.v_gps)
 
-        # self.update_vbox(self.label_ex, self.ex)
-        # self.update_vbox(self.label_ev, self.ev)
-        # self.update_vbox(self.label_fM, self.fM)
+        self.update_vbox(self.label_ex, self.ex)
+        self.update_vbox(self.label_ev, self.ev)
+
+        self.update_vbox(self.label_fM, self.fM, data_size=4)
         # self.update_vbox(self.label_f, self.f)
-        # # self.update_vbox(self.label_thr, self.thr)
+        # self.update_vbox(self.label_thr, self.thr)
 
 
     def init_vbox(self, box, name, num):
@@ -312,8 +332,8 @@ class GuiNode(Node, QMainWindow):
         return [box, labels]
     
 
-    def update_vbox(self, labels, data):
-        for i in range(3):
+    def update_vbox(self, labels, data, data_size=3):
+        for i in range(data_size):
             labels[i + 1].setText("{:>5.2f}".format(data[i]))
 
     
@@ -331,13 +351,14 @@ class GuiNode(Node, QMainWindow):
 
     
     def on_btn_motor_on_clicked(self):
-        pass
-        # if rover.motor_on:
-        #     rover.motor_on = False
-        #     self.button_motor_on.setText("Turn on motors")
-        # else:
-        #     rover.motor_on = True
-        #     self.button_motor_on.setText("Turn off motors")
+        if self.motor_on:
+            self.get_logger().info('Turning motors on')
+            self.motor_on = False
+            self.button_motor_on.setText("Turn on motors")
+        else:
+            self.get_logger().info('Turning motors off')
+            self.motor_on = True
+            self.button_motor_on.setText("Turn off motors")
 
 
     def on_flight_mode_changed(self):
@@ -350,16 +371,45 @@ class GuiNode(Node, QMainWindow):
                 msg.data = i
                 self.pub_mode.publish(msg)
 
-                # rover.x_offset = np.zeros(3)
-                # rover.yaw_offset = 0.0
+                self.x_offset = np.zeros(3)
+                self.yaw_offset = 0.0
                 break
 
 
     def on_key_press(self, event):
-        if event.key() == Qt.Key_Q:
-            self.on_btn_close_clicked()
-        elif event.key() == Qt.Key_M:
+        self.get_logger().info('Key presed {}'.format(event.key()))
+        if event.key() == Qt.Key_M:
             self.on_btn_motor_on_clicked()
+        elif event.key() == Qt.Key_QuoteLeft:
+            self.radio_button_modes[0].setChecked(True)
+        elif event.key() == Qt.Key_1:
+            self.radio_button_modes[1].setChecked(True)
+        elif event.key() == Qt.Key_2:
+            self.radio_button_modes[2].setChecked(True)
+        elif event.key() == Qt.Key_3:
+            self.radio_button_modes[3].setChecked(True)
+        elif event.key() == Qt.Key_4:
+            self.radio_button_modes[4].setChecked(True)
+        elif event.key() == Qt.Key_5:
+            self.radio_button_modes[5].setChecked(True)
+        elif event.key() == Qt.Key_6:
+            self.radio_button_modes[6].setChecked(True)
+        elif event.key() == Qt.Key_W:
+            self.x_offset[0] += self.x_offset_delta
+        elif event.key() == Qt.Key_S:
+            self.x_offset[0] -= self.x_offset_delta
+        elif event.key() == Qt.Key_D:
+            self.x_offset[1] += self.x_offset_delta
+        elif event.key() == Qt.Key_A:
+            self.x_offset[1] -= self.x_offset_delta
+        elif event.key() == Qt.Key_L:
+            self.x_offset[2] += self.x_offset_delta
+        elif event.key() == Qt.Key_P:
+            self.x_offset[2] -= self.x_offset_delta
+        elif event.key() == Qt.Key_E:
+            self.yaw_offset += self.yaw_offset_delta
+        elif event.key() == Qt.Key_Q:
+            self.yaw_offset -= self.yaw_offset_delta
 
 
     def states_callback(self, msg):
@@ -395,6 +445,22 @@ class GuiNode(Node, QMainWindow):
             for j in range(3):
                 self.Rd[i, j] = msg.attitude[3*i + j]
 
+
+    def errors_callback(self, msg):
+        """Callback function for the error subscriber.
+
+        Args:
+            msg: (ErrorData) Error data message
+        """
+
+        for i in range(3):
+            self.ex[i] = msg.position[i]
+            self.ev[i] = msg.velocity[i]
+            self.eR[i] = msg.attitude[i]
+            self.eW[i] = msg.angular_velocity[i]
+            self.eIX[i] = msg.position_integral[i]
+            self.eIR[i] = msg.attitude_integral[i]
+
     
     def imu_callback(self, msg):
         """Callback function for the IMU subscriber.
@@ -429,7 +495,6 @@ class GuiNode(Node, QMainWindow):
         self.W_imu = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
 
 
-
     def gps_callback(self, msg):
         """Callback function for the GPS subscriber.
 
@@ -445,204 +510,11 @@ class GuiNode(Node, QMainWindow):
         self.v_gps = np.array([v_gazebo.x, -v_gazebo.y, -v_gazebo.z])
 
 
-class Gui():
-    def __init__(self):
-
-        self.builder = Gtk.Builder()
-        self.builder.add_from_file("gui.glade")
-
-        self.window = self.builder.get_object('window_main')
-        self.window.set_title('UAV Simulator')
-        self.window.connect('destroy', Gtk.main_quit)
-        self.window.connect('key-press-event', self.on_key_press)
-
-        self.btn_close = self.builder.get_object('btn_close')
-        self.btn_close.connect('clicked', self.on_btn_close_clicked)
-
-        self.tgl_motor_on = self.builder.get_object('tgl_motor_on')
-        self.tgl_motor_on.connect('toggled', self.on_tgl_motor_on_toggled)
-
-        self.tgl_save = self.builder.get_object('tgl_save')
-        self.tgl_save.connect('toggled', self.on_tgl_save_toggled)
-
-        self.lbl_save = self.builder.get_object('lbl_save')
-        self.lbl_save.set_text(rover.t0.strftime('log_%Y%m%d_%H%M%S.txt'))
-
-        self.btn_plot = self.builder.get_object('btn_plot')
-        self.btn_plot.connect('clicked', self.on_btn_plot_clicked)
-
-        self.lbl_t = self.builder.get_object('lbl_t')
-        self.lbl_freq_imu = self.builder.get_object('lbl_freq_imu')
-        self.lbl_freq_gps = self.builder.get_object('lbl_freq_gps')
-        self.lbl_freq_control = self.builder.get_object('lbl_freq_control')
-        self.lbl_freq_log = self.builder.get_object('lbl_freq_log')
-
-        self.modes = ['Idle', 'Warm-up', 'Take-off', 'Land', 'Stay', 'Circle']
-        self.rdo_mode = []
-        for i in range(len(self.modes)):
-            self.rdo_mode.append(
-                self.builder.get_object('rdo_mode_{}'.format(i)))
-            self.rdo_mode[i].set_label(self.modes[i])
-            self.rdo_mode[i].connect('toggled', self.on_rdo_buton_clicked, i)
-
-        self.x = self.get_vbox('lbl_x')
-        self.v = self.get_vbox('lbl_v')
-        self.a = self.get_vbox('lbl_a')
-        self.W = self.get_vbox('lbl_W')
-        self.R = self.get_grid('lbl_R')
-
-        self.xd = self.get_vbox('lbl_xd')
-        self.vd = self.get_vbox('lbl_vd')
-        self.Wd = self.get_vbox('lbl_Wd')
-        self.b1d = self.get_vbox('lbl_b1d')
-        self.Rd = self.get_grid('lbl_Rd')
-
-        self.window.connect('destroy', Gtk.main_quit)
-        self.window.show_all()
-
-
-    def on_btn_close_clicked(self, *args):
-        print('GUI: close button clicked')
-        rover.on = False
-        Gtk.main_quit()
-
-
-    def on_btn_plot_clicked(self, widget):
-        print('GUI: generating plots ..')
-        # plot_data()
-        os.system('python3 plot_utils.py')
-
-
-    def on_tgl_save_toggled(self, widget):
-        if self.tgl_save.get_active():
-            print('GUI: saving data started ..')
-            rover.save_on = True
-        else:
-            print('GUI: saving data stopped')
-            rover.save_on = False
-
-
-    def on_tgl_motor_on_toggled(self, widget):
-        if self.tgl_motor_on.get_active():
-            print('GUI: motor on ..')
-            rover.motor_on = True
-        else:
-            print('GUI: motor off')
-            rover.motor_on = False
-
-
-    def on_rdo_buton_clicked(self, widget, num):
-        if widget.get_active():
-            print('GUI: mode switched to {}'.format(self.modes[num]))
-            rover.mode = num
-            rover.x_offset = np.zeros(3)
-            rover.yaw_offset = 0.0
-
-
-    def on_key_press(self, widget, event):
-        key = event.keyval
-        
-        x_step = 0.1
-        yaw_step = 0.02
-        
-        if key == Gdk.KEY_M or  key == Gdk.KEY_m:
-            print('GUI: turning motors off')
-            rover.motor_on = False
-            self.tgl_motor_on.set_active(False)
-        elif key == Gdk.KEY_0:
-            self.rdo_mode[0].set_active(True)
-            rover.x_offset = np.zeros(3)
-            rover.yaw_offset = 0.0
-        elif key == Gdk.KEY_1:
-            self.rdo_mode[1].set_active(True)
-            rover.x_offset = np.zeros(3)
-            rover.yaw_offset = 0.0
-        elif key == Gdk.KEY_2:
-            self.rdo_mode[2].set_active(True)
-            rover.x_offset = np.zeros(3)
-            rover.yaw_offset = 0.0
-        elif key == Gdk.KEY_3:
-            self.rdo_mode[3].set_active(True)
-            rover.x_offset = np.zeros(3)
-            rover.yaw_offset = 0.0
-        elif key == Gdk.KEY_4:
-            self.rdo_mode[4].set_active(True)
-            rover.x_offset = np.zeros(3)
-            rover.yaw_offset = 0.0
-        elif key == Gdk.KEY_5:
-            self.rdo_mode[5].set_active(True)
-            rover.x_offset = np.zeros(3)
-            rover.yaw_offset = 0.0
-        elif key == Gdk.KEY_W or key == Gdk.KEY_w:
-            rover.x_offset[0] += x_step
-        elif key == Gdk.KEY_S or key == Gdk.KEY_s:
-            rover.x_offset[0] -= x_step
-        elif key == Gdk.KEY_D or key == Gdk.KEY_d:
-            rover.x_offset[1] += x_step
-        elif key == Gdk.KEY_A or key == Gdk.KEY_a:
-            rover.x_offset[1] -= x_step
-        elif key == Gdk.KEY_L or key == Gdk.KEY_l:
-            rover.x_offset[2] += x_step
-        elif key == Gdk.KEY_P or key == Gdk.KEY_p:
-            rover.x_offset[2] -= x_step
-        elif key == Gdk.KEY_E or key == Gdk.KEY_e:
-            rover.yaw_offset += yaw_step
-        elif key == Gdk.KEY_Q or key == Gdk.KEY_q:
-            rover.yaw_offset -= yaw_step
-
-
-    def update_gui(self):
-        self.lbl_t.set_text('t = {:0.1f} s'.format(rover.t))
-        self.lbl_freq_imu.set_text( \
-            'IMU = {:3.0f} Hz'.format(rover.freq_imu))
-        self.lbl_freq_gps.set_text(
-            'GPS = {:3.0f} Hz'.format(rover.freq_gps))
-        self.lbl_freq_control.set_text(
-            'CTRL = {:3.0f} Hz'.format(rover.freq_control))
-        self.lbl_freq_log.set_text(
-            'LOG = {:3.0f} Hz'.format(rover.freq_log))
-
-        self.update_vbox(self.x, rover.x)
-        self.update_vbox(self.v, rover.v)
-        self.update_vbox(self.a, rover.a)
-        self.update_vbox(self.W, rover.W)
-        self.update_grid(self.R, rover.R)
-
-        self.update_vbox(self.xd, rover.control.xd)
-        self.update_vbox(self.vd, rover.control.xd_dot)
-        self.update_vbox(self.b1d, rover.control.b1d)
-        self.update_vbox(self.Wd, rover.control.Wd)
-        self.update_grid(self.Rd, rover.control.Rd)
-
-        return True
-
-
-    def get_vbox(self, name):
-        vbox = []
-        for i in range(3):
-            vbox.append(self.builder.get_object('{}_{}'.format(name, i + 1)))
-        return vbox
-
-
-    def update_vbox(self, vbox, data):
-        for i in range(3):
-            vbox[i].set_text('{:8.2f}'.format(data[i]))
-
-
-    def get_grid(self, name):
-        vbox = []
-        for i in range(1, 4):
-            for j in range(1, 4):
-                vbox.append(self.builder.get_object('{}_{}{}'.format(name, \
-                    i, j)))
-        return vbox
-
-
-    def update_grid(self, grid, data):
-        for i in range(3):
-            for j in range(3):
-                k = 3 * i + j
-                grid[k].set_text('{:8.2f}'.format(data[i, j]))
+    def fM_callback(self, msg):
+        self.fM[0] = msg.wrench.force.z
+        self.fM[1] = msg.wrench.torque.x
+        self.fM[2] = msg.wrench.torque.y
+        self.fM[3] = msg.wrench.torque.z
 
 
 def main(args=None):

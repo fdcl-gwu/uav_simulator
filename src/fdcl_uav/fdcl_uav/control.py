@@ -10,7 +10,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import Vector3, WrenchStamped
 from std_msgs.msg import Int32
 
-from uav_gazebo.msg import DesiredData
+from uav_gazebo.msg import DesiredData, ErrorData
 
 
 class ControlNode(Node):
@@ -197,6 +197,12 @@ class ControlNode(Node):
         ])
         self.fM_to_forces_inv = np.linalg.inv(fM_to_forces)  # Force to 
             # force-moment conversion matrix
+
+        # Control errors
+        self.ex = np.zeros(3)
+        self.ev = np.zeros(3)
+        self.eR = np.zeros(3)
+        self.eW = np.zeros(3)
         
         # Integral errors
         self.eIX = IntegralErrorVec3()  # Position integral error
@@ -204,7 +210,6 @@ class ControlNode(Node):
         self.eI1 = IntegralError()  # Attitude integral error for roll axis
         self.eI2 = IntegralError()  # Attitude integral error for pitch axis
         self.eIy = IntegralError()  # Attitude integral error for yaw axis
-        self.eIX = IntegralError()  # Position integral error
 
         self.sat_sigma = 1.8
 
@@ -249,7 +254,7 @@ class ControlNode(Node):
         self.pub_fM.publish(fM_message)
 
         self.publish_desired()
-        
+        self.publish_errors()
 
 
     def position_control(self):
@@ -379,6 +384,9 @@ class ControlNode(Node):
         self.wc3 = e3 @ (R_T @ Rd @ Wd)
         self.wc3_dot = e3 @ (R_T @ Rd @ Wd_dot) \
             - e3 @ (hatW @ R_T @ Rd @ Wd)
+        
+        self.ex = eX
+        self.ev = eV
 
 
     def attitude_control(self):
@@ -467,10 +475,10 @@ class ControlNode(Node):
 
         # For saving:
         RdtR = Rd_T @ R
-        eR = 0.5 * vee(RdtR - RdtR.T)
+        self.eR = 0.5 * vee(RdtR - RdtR.T)
         self.eIR.error = np.array([self.eI1.error, self.eI2.error, \
             self.eIy.error])
-        eW = W - R_T @ Rd @ Wd
+        self.eW = W - R_T @ Rd @ Wd
 
 
     def set_integral_errors_to_zero(self):
@@ -504,6 +512,7 @@ class ControlNode(Node):
 
     def init_publishers(self):
         self.pub_desired = self.create_publisher(DesiredData, '/uav/desired', 1)
+        self.pub_errors = self.create_publisher(ErrorData, '/uav/errors', 1)
         self.pub_fM = self.create_publisher(WrenchStamped, '/uav/fm', 1)
 
         timer_period = 0.0005
@@ -527,6 +536,7 @@ class ControlNode(Node):
     def mode_callback(self, msg):
         self.mode = msg.data
         self.get_logger().info('Mode switched to {}'.format(self.mode))
+
 
     def trajectory_callback(self, msg):
         """Callback function for the trajectory subscriber.
@@ -584,6 +594,23 @@ class ControlNode(Node):
         msg.is_landed = self.is_landed
 
         self.pub_desired.publish(msg)
+
+
+    def publish_errors(self):
+
+        msg = ErrorData()
+
+        for i in range(3):
+            msg.position[i] = self.ex[i]
+            msg.velocity[i] = self.ev[i]
+
+            msg.attitude[i] = self.eR[i]
+            msg.angular_velocity[i] = self.eW[i]
+
+            msg.position_integral[i] = self.eIX.error[i]
+            msg.attitude_integral[i] = self.eIR.error[i]
+
+        self.pub_errors.publish(msg)
 
 
 def main(args=None):
