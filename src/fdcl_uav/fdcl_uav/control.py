@@ -10,7 +10,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import Vector3, WrenchStamped
 from std_msgs.msg import Int32, Bool
 
-from uav_gazebo.msg import DesiredData, ErrorData
+from uav_gazebo.msg import DesiredData, ErrorData, StateData
 
 
 class ControlNode(Node):
@@ -111,7 +111,7 @@ class ControlNode(Node):
     def __init__(self):
         Node.__init__(self, 'control')
 
-        self.t0 = datetime.datetime.now() 
+        self.t0 = self.get_clock().now()
         self.t = 0.0
         self.t_pre = 0.0
         self.dt = 1e-9
@@ -246,12 +246,10 @@ class ControlNode(Node):
             force = Vector3(x=0.0, y=0.0, z=0.0)
             torque = Vector3(x=0.0, y=0.0, z=0.0)    
         else:
+            # FDCL uses NED, Gazebo uses NWU
             force = Vector3(x=0.0, y=0.0, z=self.fM[0])
-            torque = Vector3(x=self.fM[1], y=self.fM[2], z=self.fM[3])
+            torque = Vector3(x=self.fM[1], y=-self.fM[2], z=-self.fM[3])
 
-        # FDCL uses NED, Gazebo uses NWU
-        torque.y *= -1
-        torque.z *= -1
         
         fM_message = WrenchStamped()
         fM_message.wrench.force = force
@@ -485,6 +483,8 @@ class ControlNode(Node):
             self.eIy.error])
         self.eW = W - R_T @ Rd @ Wd
 
+        # self.get_logger().info('eR ' + str(self.eR))
+
 
     def set_integral_errors_to_zero(self):
         """Set all integrals to zero."""
@@ -500,18 +500,8 @@ class ControlNode(Node):
         """Update the current time since epoch."""
         self.t_pre = self.t
 
-        t_now = datetime.datetime.now()
-        self.t = (t_now - self.t0).total_seconds()
-
-
-    def get_current_time(self):
-        """Return the current time since epoch.
-        
-        Return:
-            t: (float) time since epoch [s]
-        """
-        t_now = datetime.datetime.now()
-        return (t_now - self.t0).total_seconds()
+        t_now = self.get_clock().now()
+        self.t = float((t_now - self.t0).nanoseconds) * 1e-9
     
 
 
@@ -525,6 +515,12 @@ class ControlNode(Node):
     
 
     def init_subscribers(self):
+        self.sub_trajectory = self.create_subscription( \
+            StateData,
+            '/uav/states', 
+            self.states_callback, 
+            1)
+        
         self.sub_trajectory = self.create_subscription( \
             DesiredData,
             '/uav/trajectory', 
@@ -548,6 +544,18 @@ class ControlNode(Node):
     def mode_callback(self, msg):
         self.mode = msg.data
         self.get_logger().info('Mode switched to {}'.format(self.mode))
+
+    
+    def states_callback(self, msg):
+
+        for i in range(3):
+            self.x[i] = msg.position[i]
+            self.v[i] = msg.velocity[i]
+            self.a[i] = msg.acceleration[i]
+            self.W[i] = msg.angular_velocity[i]
+
+            for j in range(3):
+                self.R[i, j] = msg.attitude[3*i + j]
 
 
     def trajectory_callback(self, msg):
@@ -630,6 +638,7 @@ class ControlNode(Node):
 
             msg.position_integral[i] = self.eIX.error[i]
             msg.attitude_integral[i] = self.eIR.error[i]
+            
 
         self.pub_errors.publish(msg)
 

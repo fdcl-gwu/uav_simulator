@@ -17,7 +17,7 @@ class TrajectoryNode(Node):
         self.is_mode_changed = False
         self.is_landed = False
 
-        self.t0 = datetime.datetime.now()
+        self.t0 = self.get_clock().now()
         self.t = 0.0
         self.t_traj = 0.0
 
@@ -171,7 +171,7 @@ class TrajectoryNode(Node):
 
         self.t = 0.0
         self.t_traj = 0.0
-        self.t0 = datetime.datetime.now()
+        self.t0 = self.get_clock().now()
 
         self.x_offset = np.zeros(3)
         self.yaw_offset = 0.0
@@ -237,8 +237,8 @@ class TrajectoryNode(Node):
 
 
     def update_current_time(self):
-        t_now = datetime.datetime.now()
-        self.t = (t_now - self.t0).total_seconds()
+        t_now = self.get_clock().now()
+        self.t = float((t_now - self.t0).nanoseconds) * 1e-9
 
 
     def manual(self):
@@ -264,33 +264,48 @@ class TrajectoryNode(Node):
             self.set_desired_states_to_zero()
 
             # Take-off starts from the current horizontal position.
-            self.xd[0] = self.x[0]
-            self.xd[1] = self.x[1]
-            self.x_init = self.x
+            self.xd = np.copy(self.x)
 
-            self.t_traj = (self.takeoff_end_height - self.x[2]) / \
-                self.takeoff_velocity
+            self.xd_dot = np.zeros(3)
+            self.xd_dot[2] = self.takeoff_velocity
+
+            self.t_traj = abs((self.takeoff_end_height - self.x[2]) / self.takeoff_velocity)
 
             # Set the takeoff attitude to the current attitude.
             self.b1d = self.get_current_b1()
 
             self.trajectory_started = True
 
+            takeoff_end_position = np.copy(self.x_init)
+            takeoff_end_position[2] += self.takeoff_velocity * self.t_traj
+
+            self.get_logger().info('Takeoff started')
+            self.get_logger().info('Starting from ' + str(self.x))
+            self.get_logger().info('Takeoff time ' + str(self.t_traj))
+            self.get_logger().info('Reaching ' + str(takeoff_end_position))
+            self.get_logger().info('Takeoff velocity ' + str(self.takeoff_velocity) + ' m/s')
+
         self.update_current_time()
 
         if self.t < self.t_traj:
             self.xd[2] = self.x_init[2] + self.takeoff_velocity * self.t
-            self.xd_2dot[2] = self.takeoff_velocity
+            self.xd_dot[2] = self.takeoff_velocity
+
+        elif not self.waypoint_reached(self.xd, self.x, 0.04):
+            self.xd[2] = self.takeoff_end_height
+            xd_dot_gain = 0.1
+            self.xd_dot = xd_dot_gain * (self.x - self.xd)
+
         else:
-            if self.waypoint_reached(self.xd, self.x, 0.04):
-                self.xd[2] = self.takeoff_end_height
-                self.xd_dot[2] = 0.0
+            self.xd[2] = self.takeoff_end_height
+            self.xd_dot[2] = 0.0
 
-                if not self.trajectory_complete:
-                    print('Takeoff complete\nSwitching to manual mode')
+            if not self.trajectory_complete:
+                self.get_logger().info('Takeoff complete')
+                self.get_logger().info('Switching to manual mode')
+
+            self.mark_traj_end(True)
                 
-                self.mark_traj_end(True)
-
 
     def land(self):
         if not self.trajectory_started:
@@ -314,7 +329,8 @@ class TrajectoryNode(Node):
                 self.xd_dot[2] = 0.0
 
                 if not self.trajectory_complete:
-                    print('Landing complete')
+                    self.get_logger().info('Landing complete')
+
 
                 self.mark_traj_end(False)
                 self.is_landed = True

@@ -81,7 +81,7 @@ class GuiNode(Node, QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
-        self.timer.start(1000)
+        self.timer.start(100)
 
 
     def init_gui(self):
@@ -350,6 +350,14 @@ class GuiNode(Node, QMainWindow):
 
     def on_btn_close_clicked(self):
         self.get_logger().info("Shutdown button clicked")
+
+        self.get_logger().info('Turning motors off')
+        self.motor_on = False
+        
+        msg = Bool()
+        msg.data = self.motor_on
+        self.pub_motors_on.publish(msg)
+        
         self.destroy_node()
         self.close()
         rclpy.shutdown()

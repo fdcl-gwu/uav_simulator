@@ -47,7 +47,7 @@ class EstimatorNode(Node):
     ge3: (3x1 numpy array) gravitational acceleration direction [m/s^2]
 
     R_bi: (3x3 numpy array) transformation from IMU frame to the body frame
-    R_bi_T: (3x3 numpy array) transformation from IMU frame to the body frame
+    R_ib: (3x3 numpy array) transformation from IMU frame to the body frame
 
     e3 : (3x1 numpy array) direction of the e3 axis
     eye3: (3x3 numpy array) 3x3 identity matrix
@@ -81,7 +81,7 @@ class EstimatorNode(Node):
             1.0  # accelerometer z bias
         ])
 
-        self.t0 = datetime.datetime.now()
+        self.t0 = self.get_clock().now()
         self.t = 0.0
         self.t_pre = 0.0
 
@@ -100,7 +100,7 @@ class EstimatorNode(Node):
             [0.0, -1.0, 0.0],
             [0.0, 0.0, -1.0]
         ])
-        self.R_bi_T = self.R_bi.T
+        self.R_ib = self.R_bi.T
 
         self.e3 = np.array([0.0, 0.0, 1.0])
         self.eye3 = np.eye(3)
@@ -140,7 +140,8 @@ class EstimatorNode(Node):
         self.W_pre = np.copy(self.W)
         self.b_a_pre = self.b_a * 1.0
 
-        self.W = self.R_bi.dot(W_imu)
+        # TODO: replace .dot with @
+        self.W = self.R_bi @ W_imu
         self.R = self.R.dot(expm_SO3(h / 2.0 * (self.W + self.W_pre)))
 
         # This assumes IMU provide acceleration without g
@@ -190,7 +191,7 @@ class EstimatorNode(Node):
             V_R_imu: (3x3 numpy array) attitude measurement covariance
         """
 
-        imu_R = self.R.T.dot(R_imu).dot(self.R_bi_T)
+        imu_R = self.R.T @ R_imu @ self.R_ib
         del_z = 0.5 * vee(imu_R - imu_R.T)
 
         H = np.block([self.zero3, self.zero3, self.eye3, np.zeros((3, 1))])
@@ -262,8 +263,8 @@ class EstimatorNode(Node):
         """
 
         self.t_pre = self.t * 1.0
-        t_now = datetime.datetime.now()
-        self.t = (t_now - self.t0).total_seconds()
+        t_now = self.get_clock().now()
+        self.t = float((t_now - self.t0).nanoseconds) * 1e-9
 
         return self.t - self.t_pre
 
@@ -309,15 +310,15 @@ class EstimatorNode(Node):
         q = np.array([q_gazebo.x, q_gazebo.y, q_gazebo.z, q_gazebo.w])
 
         R_gi = q_to_R(q) # IMU to Gazebo frame
-        R_fi = self.R_fg.dot(R_gi)  # IMU to FDCL frame (NED freme)
+        R_fi = self.R_fg @ R_gi  # IMU to FDCL frame (NED frame)
 
         # FDCL-UAV expects IMU accelerations without gravity.
         a_i = np.array([a_gazebo.x, a_gazebo.y, a_gazebo.z])
-        a_imu = R_gi.T.dot(R_gi.dot(a_i) - self.ge3)
+        a_imu = R_gi.T @ (R_gi @ a_i - self.ge3)
 
         W_imu = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
 
-        # TODO: get covarainces from the message
+        # TODO: get covariances from the message
         self.prediction(a_imu, W_imu)
         self.imu_correction(R_fi, self.V_R_imu)
 
@@ -340,6 +341,7 @@ class EstimatorNode(Node):
         v_gps = np.array([v_gazebo.x, -v_gazebo.y, -v_gazebo.z])
 
         self.gps_correction(x_gps, v_gps, self.V_x_gps, self.V_v_gps)
+
         self.publish_states()
         
 
