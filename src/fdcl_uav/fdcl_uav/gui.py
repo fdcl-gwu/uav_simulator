@@ -1,4 +1,5 @@
 from .matrix_utils import q_to_R
+from .freq_utils import Freq
 
 import numpy as np
 import os
@@ -13,7 +14,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import WrenchStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32, Bool
 
 from uav_gazebo.msg import StateData, DesiredData, ErrorData
 
@@ -28,6 +29,7 @@ class GuiNode(Node, QMainWindow):
         self.motor_on = False
 
         # States
+        self.freq_estimator = Freq("EST", 100)
         self.x = np.zeros(3)
         self.v = np.zeros(3)
         self.a = np.zeros(3)
@@ -51,14 +53,17 @@ class GuiNode(Node, QMainWindow):
         self.eIR = np.zeros(3)
 
         # Sensor measurements
+        self.freq_imu = Freq("IMU", 100)
         self.R_imu = np.zeros([3, 3])
         self.a_imu = np.zeros([3, 1])
         self.W_imu = np.zeros([3, 1])
 
+        self.freq_gps = Freq("GPS", 10)
         self.x_gps = np.zeros([3, 1])
         self.v_gps = np.zeros([3, 1])
 
         # Motor forces
+        self.freq_control = Freq("CTRL", 100)
         self.fM = np.zeros(4)
 
         # Manual mode
@@ -252,17 +257,17 @@ class GuiNode(Node, QMainWindow):
 
     def init_publishers(self):
         self.pub_mode = self.create_publisher(Int32, '/uav/mode', 1) 
+        self.pub_motors_on = self.create_publisher(Bool, '/uav/motors_on', 1) 
     
     
     def update(self):
-        t_now = self.get_clock().now()
-        t_sec = float((t_now - self.t0).to_msg().sec)
+        t_sec = self.get_t_now()
 
         self.label_time.setText(f't: {t_sec:5.1f} s')
-        self.label_freq_imu.setText(f'IMU: {t_sec:5.1f} Hz')
-        self.label_freq_gps.setText(f'GPS: {t_sec:5.1f} Hz')
-        self.label_freq_control.setText(f'CTR: {t_sec:5.1f} Hz')
-        self.label_freq_estimator.setText(f'EST: {t_sec:5.1f} Hz')
+        self.label_freq_imu.setText(self.freq_imu.get_freq_str())
+        self.label_freq_gps.setText(self.freq_gps.get_freq_str())
+        self.label_freq_control.setText(self.freq_control.get_freq_str())
+        self.label_freq_estimator.setText(self.freq_estimator.get_freq_str())
 
         self.update_vbox(self.label_x, self.x)
         self.update_vbox(self.label_v, self.v)
@@ -351,14 +356,19 @@ class GuiNode(Node, QMainWindow):
 
     
     def on_btn_motor_on_clicked(self):
+
         if self.motor_on:
-            self.get_logger().info('Turning motors on')
+            self.get_logger().info('Turning motors off')
             self.motor_on = False
             self.button_motor_on.setText("Turn on motors")
         else:
-            self.get_logger().info('Turning motors off')
+            self.get_logger().info('Turning motors on')
             self.motor_on = True
             self.button_motor_on.setText("Turn off motors")
+        
+        msg = Bool()
+        msg.data = self.motor_on
+        self.pub_motors_on.publish(msg)
 
 
     def on_flight_mode_changed(self):
@@ -412,12 +422,20 @@ class GuiNode(Node, QMainWindow):
             self.yaw_offset -= self.yaw_offset_delta
 
 
+    def get_t_now(self):
+        t_now = self.get_clock().now()
+        t_sec = float((t_now - self.t0).nanoseconds) * 1e-9
+        return t_sec
+
+
     def states_callback(self, msg):
         """Callback function for the states subscriber.
 
         Args:
             msg: (StateData) State data message
         """
+
+        self.freq_estimator.update(self.get_t_now())
        
         for i in range(3):
             self.x[i] = msg.position[i]
@@ -469,6 +487,8 @@ class GuiNode(Node, QMainWindow):
             msg: (Imu) IMU message
         """
 
+        self.freq_imu.update(self.get_t_now())
+
         # Gazebo uses ENU frame, but NED frame is used in FDCL.
         # Note that ENU and the NED here refer to their direction order.
         # ENU: E - axis 1, N - axis 2, U - axis 3
@@ -502,6 +522,8 @@ class GuiNode(Node, QMainWindow):
             msg: (GPS) GPS message
         """
 
+        self.freq_gps.update(self.get_t_now())
+
         x_gazebo = msg.pose.pose.position
         v_gazebo = msg.twist.twist.linear
 
@@ -511,6 +533,9 @@ class GuiNode(Node, QMainWindow):
 
 
     def fM_callback(self, msg):
+
+        self.freq_control.update(self.get_t_now())
+
         self.fM[0] = msg.wrench.force.z
         self.fM[1] = msg.wrench.torque.x
         self.fM[2] = msg.wrench.torque.y

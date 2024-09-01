@@ -8,7 +8,7 @@ import rclpy
 from rclpy.node import Node
 
 from geometry_msgs.msg import Vector3, WrenchStamped
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32, Bool
 
 from uav_gazebo.msg import DesiredData, ErrorData
 
@@ -244,13 +244,19 @@ class ControlNode(Node):
 
         if (not self.motor_on) or (self.mode < 2):
             force = Vector3(x=0.0, y=0.0, z=0.0)
-            torque = Vector3(x=0.0, y=0.0, z=0.0)
-            
+            torque = Vector3(x=0.0, y=0.0, z=0.0)    
         else:
-            force = Vector3(x=0.0, y=0.0, z=self.fM[0][0])
-            torque = Vector3(x=self.fM[1][0], y=self.fM[2][0], z=self.fM[3][0])
-            
-        fM_message = WrenchStamped(force=force, torque=torque)
+            force = Vector3(x=0.0, y=0.0, z=self.fM[0])
+            torque = Vector3(x=self.fM[1], y=self.fM[2], z=self.fM[3])
+
+        # FDCL uses NED, Gazebo uses NWU
+        torque.y *= -1
+        torque.z *= -1
+        
+        fM_message = WrenchStamped()
+        fM_message.wrench.force = force
+        fM_message.wrench.torque = torque
+
         self.pub_fM.publish(fM_message)
 
         self.publish_desired()
@@ -464,8 +470,7 @@ class ControlNode(Node):
         if self.use_integral:
             M3 += - self.kyI * self.eIy.error
 
-        # Gazebo uses ENU frame, but NED frame is used in FDCL.
-        M = np.array([M1, -M2, -M3])
+        M = np.array([M1, M2, M3])
 
         self.fM[0] = self.f_total
         for i in range(3):
@@ -515,7 +520,7 @@ class ControlNode(Node):
         self.pub_errors = self.create_publisher(ErrorData, '/uav/errors', 1)
         self.pub_fM = self.create_publisher(WrenchStamped, '/uav/fm', 1)
 
-        timer_period = 0.0005
+        timer_period = 0.005
         self.timer = self.create_timer(timer_period, self.control_run)
     
 
@@ -531,6 +536,13 @@ class ControlNode(Node):
             '/uav/mode',
             self.mode_callback,
             1)
+        
+
+        self.sub_motors_on = self.create_subscription( \
+            Bool,
+            '/uav/motors_on',
+            self.motors_on_callback,
+            1)
     
 
     def mode_callback(self, msg):
@@ -542,7 +554,7 @@ class ControlNode(Node):
         """Callback function for the trajectory subscriber.
 
         Args:
-            msg: (StateData) Trajectory data message
+            msg: (DesiredData) Trajectory data message
         """
 
         for i in range(3):
@@ -557,6 +569,15 @@ class ControlNode(Node):
             self.b1d_2dot[i] = msg.b1_2dot[i]
 
         self.is_landed = msg.is_landed
+
+    
+    def motors_on_callback(self, msg):
+        self.motor_on = msg.data
+
+        if self.motor_on:
+            self.get_logger().info('Turning motors on')
+        else:
+            self.get_logger().info('Turning motors off')
 
     
     def publish_desired(self):
