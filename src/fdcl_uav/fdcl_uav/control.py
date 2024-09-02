@@ -1,12 +1,19 @@
-from matrix_utils import hat, vee, deriv_unit_vector, saturate
-from integral_utils import IntegralError, IntegralErrorVec3
+from .matrix_utils import hat, vee, deriv_unit_vector, saturate
+from .integral_utils import IntegralError, IntegralErrorVec3
 
 import datetime
 import numpy as np
-import pdb
+
+import rclpy
+from rclpy.node import Node
+
+from geometry_msgs.msg import Vector3, WrenchStamped
+from std_msgs.msg import Int32, Bool
+
+from uav_gazebo.msg import DesiredData, ErrorData, ModeData, StateData
 
 
-class Control:
+class ControlNode(Node):
     """Controller for the UAV trajectory tracking.
 
     This class detemines the control outputs for a quadrotor UAV given it's
@@ -102,8 +109,9 @@ class Control:
     """
 
     def __init__(self):
+        Node.__init__(self, 'control')
 
-        self.t0 = datetime.datetime.now() 
+        self.t0 = self.get_clock().now()
         self.t = 0.0
         self.t_pre = 0.0
         self.dt = 1e-9
@@ -189,6 +197,12 @@ class Control:
         ])
         self.fM_to_forces_inv = np.linalg.inv(fM_to_forces)  # Force to 
             # force-moment conversion matrix
+
+        # Control errors
+        self.ex = np.zeros(3)
+        self.ev = np.zeros(3)
+        self.eR = np.zeros(3)
+        self.eW = np.zeros(3)
         
         # Integral errors
         self.eIX = IntegralErrorVec3()  # Position integral error
@@ -196,12 +210,18 @@ class Control:
         self.eI1 = IntegralError()  # Attitude integral error for roll axis
         self.eI2 = IntegralError()  # Attitude integral error for pitch axis
         self.eIy = IntegralError()  # Attitude integral error for yaw axis
-        self.eIX = IntegralError()  # Position integral error
 
         self.sat_sigma = 1.8
 
+        self.is_landed = True
+        self.mode = 0
+        self.motor_on = False
 
-    def run(self, states, desired):
+        self.init_subscribers()
+        self.init_publishers()
+
+
+    def control_run(self):
         """Run the controller to get the force-moments required to achieve the 
         the desired states from the current state.
 
@@ -214,19 +234,31 @@ class Control:
             fM: (4x1 numpy array) force-moments vector
         """
 
-        self.x, self.v, self.a, self.R, self.W = states
-        self.xd, self.xd_dot, self.xd_2dot, self.xd_3dot, self.xd_4dot, \
-            self.b1d, self.b1d_dot, self.b1d_2dot, is_landed = desired
-
         # If the UAV is landed, do not run the controller and produce zero
         # force-moments.
-        if is_landed:
-            return np.zeros(4)
-            
-        self.position_control()
-        self.attitude_control()
+        if self.is_landed:
+            self.fM = np.zeros(4)
+        else: 
+            self.position_control()
+            self.attitude_control()
 
-        return self.fM
+        if (not self.motor_on) or (self.mode < 2):
+            force = Vector3(x=0.0, y=0.0, z=0.0)
+            torque = Vector3(x=0.0, y=0.0, z=0.0)    
+        else:
+            # FDCL uses NED, Gazebo uses NWU
+            force = Vector3(x=0.0, y=0.0, z=self.fM[0])
+            torque = Vector3(x=self.fM[1], y=-self.fM[2], z=-self.fM[3])
+
+        
+        fM_message = WrenchStamped()
+        fM_message.wrench.force = force
+        fM_message.wrench.torque = torque
+
+        self.pub_fM.publish(fM_message)
+
+        self.publish_desired()
+        self.publish_errors()
 
 
     def position_control(self):
@@ -356,6 +388,9 @@ class Control:
         self.wc3 = e3 @ (R_T @ Rd @ Wd)
         self.wc3_dot = e3 @ (R_T @ Rd @ Wd_dot) \
             - e3 @ (hatW @ R_T @ Rd @ Wd)
+        
+        self.ex = eX
+        self.ev = eV
 
 
     def attitude_control(self):
@@ -433,8 +468,7 @@ class Control:
         if self.use_integral:
             M3 += - self.kyI * self.eIy.error
 
-        # Gazebo uses ENU frame, but NED frame is used in FDCL.
-        M = np.array([M1, -M2, -M3])
+        M = np.array([M1, M2, M3])
 
         self.fM[0] = self.f_total
         for i in range(3):
@@ -444,10 +478,12 @@ class Control:
 
         # For saving:
         RdtR = Rd_T @ R
-        eR = 0.5 * vee(RdtR - RdtR.T)
+        self.eR = 0.5 * vee(RdtR - RdtR.T)
         self.eIR.error = np.array([self.eI1.error, self.eI2.error, \
             self.eIy.error])
-        eW = W - R_T @ Rd @ Wd
+        self.eW = W - R_T @ Rd @ Wd
+
+        # self.get_logger().info('eR ' + str(self.eR))
 
 
     def set_integral_errors_to_zero(self):
@@ -464,15 +500,167 @@ class Control:
         """Update the current time since epoch."""
         self.t_pre = self.t
 
-        t_now = datetime.datetime.now()
-        self.t = (t_now - self.t0).total_seconds()
+        t_now = self.get_clock().now()
+        self.t = float((t_now - self.t0).nanoseconds) * 1e-9
+    
 
 
-    def get_current_time(self):
-        """Return the current time since epoch.
+    def init_publishers(self):
+        self.pub_desired = self.create_publisher(DesiredData, '/uav/desired', 1)
+        self.pub_errors = self.create_publisher(ErrorData, '/uav/errors', 1)
+        self.pub_fM = self.create_publisher(WrenchStamped, '/uav/fm', 1)
+
+        timer_period = 0.005
+        self.timer = self.create_timer(timer_period, self.control_run)
+    
+
+    def init_subscribers(self):
+        self.sub_trajectory = self.create_subscription( \
+            StateData,
+            '/uav/states', 
+            self.states_callback, 
+            1)
         
-        Return:
-            t: (float) time since epoch [s]
+        self.sub_trajectory = self.create_subscription( \
+            DesiredData,
+            '/uav/trajectory', 
+            self.trajectory_callback, 
+            1)
+        
+        self.sub_mode = self.create_subscription( \
+            ModeData,
+            '/uav/mode',
+            self.mode_callback,
+            1)
+        
+
+        self.sub_motors_on = self.create_subscription( \
+            Bool,
+            '/uav/motors_on',
+            self.motors_on_callback,
+            1)
+    
+
+    def mode_callback(self, msg):
+        if self.mode == msg.mode:
+            return
+        
+        self.mode = msg.mode
+        self.get_logger().info('Mode switched to {}'.format(self.mode))
+
+    
+    def states_callback(self, msg):
+
+        for i in range(3):
+            self.x[i] = msg.position[i]
+            self.v[i] = msg.velocity[i]
+            self.a[i] = msg.acceleration[i]
+            self.W[i] = msg.angular_velocity[i]
+
+            for j in range(3):
+                self.R[i, j] = msg.attitude[3*i + j]
+
+
+    def trajectory_callback(self, msg):
+        """Callback function for the trajectory subscriber.
+
+        Args:
+            msg: (DesiredData) Trajectory data message
         """
-        t_now = datetime.datetime.now()
-        return (t_now - self.t0).total_seconds()
+
+        for i in range(3):
+            self.xd[i] = msg.position[i]
+            self.xd_dot[i] = msg.velocity[i]
+            self.xd_2dot[i] = msg.acceleration[i]
+            self.xd_3dot[i] = msg.jerk[i]
+            self.xd_4dot[i] = msg.snap[i]
+
+            self.b1d[i] = msg.b1[i]
+            self.b1d_dot[i] = msg.b1_dot[i]
+            self.b1d_2dot[i] = msg.b1_2dot[i]
+
+        self.is_landed = msg.is_landed
+
+    
+    def motors_on_callback(self, msg):
+        self.motor_on = msg.data
+
+        if self.motor_on:
+            self.get_logger().info('Turning motors on')
+        else:
+            self.get_logger().info('Turning motors off')
+
+    
+    def publish_desired(self):
+        """Publish the desired states."""
+
+        msg = DesiredData()
+
+        for i in range(3):
+            msg.position[i] = self.xd[i]
+            msg.velocity[i] = self.xd_dot[i]
+            msg.acceleration[i] = self.xd_2dot[i]
+            msg.jerk[i] = self.xd_3dot[i]
+            msg.snap[i] = self.xd_4dot[i]
+
+            msg.b1[i] = self.b1d[i]
+            msg.b1_dot[i] = self.b1d_dot[i]
+            msg.b1_2dot[i] = self.b1d_2dot[i]
+
+            msg.angular_velocity[i] = self.Wd[i]
+            msg.angular_acceleration[i] = self.Wd_dot[i]
+            # msg.angular_jerk = self.Wd_2dot
+
+            msg.b1c[i] = self.b1c[i]
+
+            msg.b3[i] = self.b3d[i]
+            msg.b3_dot[i] = self.b3d_dot[i]
+            msg.b3_2dot[i] = self.b3d_2dot[i]
+
+            for j in range(3):
+                msg.attitude[3*i + j] = self.Rd[i, j]
+
+        msg.wc3 = self.wc3
+        msg.wc3_dot = self.wc3_dot
+        
+        msg.is_landed = self.is_landed
+
+        self.pub_desired.publish(msg)
+
+
+    def publish_errors(self):
+
+        msg = ErrorData()
+
+        for i in range(3):
+            msg.position[i] = self.ex[i]
+            msg.velocity[i] = self.ev[i]
+
+            msg.attitude[i] = self.eR[i]
+            msg.angular_velocity[i] = self.eW[i]
+
+            msg.position_integral[i] = self.eIX.error[i]
+            msg.attitude_integral[i] = self.eIR.error[i]
+            
+
+        self.pub_errors.publish(msg)
+
+
+def main(args=None):
+    print("Starting control node")
+
+    rclpy.init(args=args)
+
+    control = ControlNode()
+
+    try:
+        rclpy.spin(control)
+    except KeyboardInterrupt:
+        pass
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    control.destroy_node()
+    
+    print("Terminating control node")

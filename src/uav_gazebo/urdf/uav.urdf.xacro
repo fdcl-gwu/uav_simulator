@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+
+<robot name="uav" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- <xacro:include filename="$(find uav_gazebo)/urdf/uav.gazebo" /> -->
+
+  <link name="link">
+    <pose>0 0 0.2 0 0 0</pose>
+    <inertial>
+      <mass value="1.95"/>
+      <inertia ixx="0.02" ixy="0" ixz="0" iyy="0.02" iyz="0" izz="0.04"/>
+    </inertial>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://uav_gazebo/meshes/quadrotor_base.dae"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://uav_gazebo/meshes/quadrotor_base.dae"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <gazebo reference="link">
+    <material>Gazebo/Orange</material>
+    <gravity>true</gravity>
+    
+    <sensor name="imu_sensor" type="imu">
+      <pose>0 0 0 0 0 0</pose>
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>true</visualize>
+
+      <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
+        <ros>
+            <remapping>~/out:=uav/imu</remapping>
+        </ros>
+
+        <pose>0 0 0 0 0 0</pose>
+        <body_name>link</body_name>
+        <update_rate>100.0</update_rate>
+        <gaussian_noise>0.0001</gaussian_noise>
+      </plugin>
+    </sensor>
+
+  </gazebo>
+
+  <gazebo>
+    <plugin name="pose_3d_plugin" filename="libgazebo_ros_p3d.so">
+      <ros>
+            <remapping>odom:=uav/gps</remapping>
+      </ros>
+
+      <body_name>link</body_name>
+      <frame_name>world</frame_name>
+      <gaussian_noise>0.01</gaussian_noise>
+      <update_rate>10</update_rate>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="uav_control_plugin" filename="libuav_control_plugin.so">
+      <body_name>link</body_name>
+      <topic_name>/uav/fm</topic_name>
+    </plugin>
+  </gazebo>
+
+</robot>

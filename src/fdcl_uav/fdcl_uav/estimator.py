@@ -1,10 +1,21 @@
-from matrix_utils import hat, vee, expm_SO3
+from .matrix_utils import hat, vee, expm_SO3, q_to_R
+
+import rclpy
+from rclpy.node import Node
 
 import datetime
 import numpy as np
 
+import rclpy
+from rclpy.node import Node
 
-class Estimator:
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Imu
+
+from uav_gazebo.msg import StateData
+
+
+class EstimatorNode(Node):
     """Estimates the states of the UAV.
 
     This uses the estimator defined in "Real-time Kinematics GPS Based 
@@ -36,7 +47,7 @@ class Estimator:
     ge3: (3x1 numpy array) gravitational acceleration direction [m/s^2]
 
     R_bi: (3x3 numpy array) transformation from IMU frame to the body frame
-    R_bi_T: (3x3 numpy array) transformation from IMU frame to the body frame
+    R_ib: (3x3 numpy array) transformation from IMU frame to the body frame
 
     e3 : (3x1 numpy array) direction of the e3 axis
     eye3: (3x3 numpy array) 3x3 identity matrix
@@ -46,6 +57,8 @@ class Estimator:
     """
 
     def __init__(self):
+        Node.__init__(self, 'estimator')
+
         self.x = np.zeros(3)
         self.v = np.zeros(3)
         self.a = np.zeros(3)
@@ -68,12 +81,13 @@ class Estimator:
             1.0  # accelerometer z bias
         ])
 
-        self.t0 = datetime.datetime.now()
+        self.t0 = self.get_clock().now()
         self.t = 0.0
         self.t_pre = 0.0
 
         self.W_pre = np.zeros(3)
         self.a_imu_pre = np.zeros(3)
+        self.W_imu_pre = np.zeros(3)
         self.R_pre = np.eye(3)
         self.b_a_pre = 0.0
 
@@ -86,13 +100,30 @@ class Estimator:
             [0.0, -1.0, 0.0],
             [0.0, 0.0, -1.0]
         ])
-        self.R_bi_T = self.R_bi.T
+        self.R_ib = self.R_bi.T
 
         self.e3 = np.array([0.0, 0.0, 1.0])
         self.eye3 = np.eye(3)
         self.eye10 = np.eye(10)
 
         self.zero3 = np.zeros((3, 3))
+
+        self.V_R_imu = np.diag([0.01, 0.01, 0.01])
+        self.V_x_gps = np.diag([0.01, 0.01, 0.01])
+        self.V_v_gps = np.diag([0.01, 0.01, 0.01])
+
+        # Gazebo uses ENU frame, but NED frame is used in FDCL.
+        # Note that ENU and the NED here refer to their direction order.
+        # ENU: E - axis 1, N - axis 2, U - axis 3
+        # NED: N - axis 1, E - axis 2, D - axis 3
+        self.R_fg = np.array([
+            [1.0, 0.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [0.0, 0.0, -1.0]
+        ])
+
+        self.init_subscribers()
+        self.init_publishers()
 
 
     def prediction(self, a_imu, W_imu):
@@ -109,7 +140,8 @@ class Estimator:
         self.W_pre = np.copy(self.W)
         self.b_a_pre = self.b_a * 1.0
 
-        self.W = self.R_bi.dot(W_imu)
+        # TODO: replace .dot with @
+        self.W = self.R_bi @ W_imu
         self.R = self.R.dot(expm_SO3(h / 2.0 * (self.W + self.W_pre)))
 
         # This assumes IMU provide acceleration without g
@@ -142,6 +174,13 @@ class Estimator:
         self.P = A.dot(self.P).dot(A.T) + F.dot(self.Q).dot(F.T)
 
         self.a_imu_pre = a_imu
+        self.W_imu_pre = W_imu
+
+        # rover.x = self.x
+        # rover.v = self.v
+        # rover.a = self.a
+        # rover.R = self.R
+        # rover.W = self.W
 
 
     def imu_correction(self, R_imu, V_R_imu):
@@ -152,7 +191,7 @@ class Estimator:
             V_R_imu: (3x3 numpy array) attitude measurement covariance
         """
 
-        imu_R = self.R.T.dot(R_imu).dot(self.R_bi_T)
+        imu_R = self.R.T @ R_imu @ self.R_ib
         del_z = 0.5 * vee(imu_R - imu_R.T)
 
         H = np.block([self.zero3, self.zero3, self.eye3, np.zeros((3, 1))])
@@ -224,8 +263,8 @@ class Estimator:
         """
 
         self.t_pre = self.t * 1.0
-        t_now = datetime.datetime.now()
-        self.t = (t_now - self.t0).total_seconds()
+        t_now = self.get_clock().now()
+        self.t = float((t_now - self.t0).nanoseconds) * 1e-9
 
         return self.t - self.t_pre
 
@@ -241,3 +280,106 @@ class Estimator:
             W: (3x1 numpy array) current angular velocity of the UAV [rad/s]
         """
         return (self.x, self.v, self.a, self.R, self.W)
+    
+
+    def init_subscribers(self):
+        self.sub_imu = self.create_subscription( \
+            Imu,
+            '/uav/imu',
+            self.imu_callback,
+            1)
+        
+        self.sub_gps = self.create_subscription( \
+            Odometry,
+            '/uav/gps',
+            self.gps_callback,
+            1)
+        
+    
+    def imu_callback(self, msg):
+        """Callback function for the IMU subscriber.
+
+        Args:
+            msg: (Imu) IMU message
+        """
+
+        q_gazebo = msg.orientation
+        a_gazebo = msg.linear_acceleration
+        W_gazebo = msg.angular_velocity
+
+        q = np.array([q_gazebo.x, q_gazebo.y, q_gazebo.z, q_gazebo.w])
+
+        R_gi = q_to_R(q) # IMU to Gazebo frame
+        R_fi = self.R_fg @ R_gi  # IMU to FDCL frame (NED frame)
+
+        # FDCL-UAV expects IMU accelerations without gravity.
+        a_i = np.array([a_gazebo.x, a_gazebo.y, a_gazebo.z])
+        a_imu = R_gi.T @ (R_gi @ a_i - self.ge3)
+
+        W_imu = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
+
+        # TODO: get covariances from the message
+        self.prediction(a_imu, W_imu)
+        self.imu_correction(R_fi, self.V_R_imu)
+
+        self.publish_states()
+
+
+
+    def gps_callback(self, msg):
+        """Callback function for the GPS subscriber.
+
+        Args:
+            msg: (GPS) GPS message
+        """
+
+        x_gazebo = msg.pose.pose.position
+        v_gazebo = msg.twist.twist.linear
+
+        # Gazebo uses ENU frame, but NED frame is used in FDCL.
+        x_gps = np.array([x_gazebo.x, -x_gazebo.y, -x_gazebo.z])
+        v_gps = np.array([v_gazebo.x, -v_gazebo.y, -v_gazebo.z])
+
+        self.gps_correction(x_gps, v_gps, self.V_x_gps, self.V_v_gps)
+
+        self.publish_states()
+        
+
+
+    def init_publishers(self):
+        self.pub_state = self.create_publisher(StateData, '/uav/states', 1)
+
+    
+    def publish_states(self):
+        states = StateData()
+        for i in range(3):
+            states.position[i] = self.x[i]
+            states.velocity[i] = self.v[i]
+            states.acceleration[i] = self.a[i]
+            states.angular_velocity[i] = self.W[i]
+
+            for j in range(3):
+                states.attitude[3*i + j] = self.R[i, j]
+
+        self.pub_state.publish(states)
+
+
+
+def main(args=None):
+    print("Starting estimator node")
+
+    rclpy.init(args=args)
+
+    estimator = EstimatorNode()
+
+    try:
+        rclpy.spin(estimator)
+    except KeyboardInterrupt:
+        pass
+
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    estimator.destroy_node()
+
+    print("Terminating estimator node")

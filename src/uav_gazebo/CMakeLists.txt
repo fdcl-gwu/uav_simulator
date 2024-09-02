@@ -1,27 +1,29 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.22.1)
 project(uav_gazebo)
 
-find_package(catkin REQUIRED COMPONENTS
-  gazebo_ros
+set(CMAKE_CXX_STANDARD 14)
+
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(xacro REQUIRED)
+
+xacro_add_files("urdf/uav.urdf.xacro" INSTALL DESTINATION urdf/)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/DesiredData.msg"
+  "msg/ErrorData.msg"
+  "msg/ModeData.msg"
+  "msg/StateData.msg"
+  DEPENDENCIES std_msgs
+ )
+
+install(DIRECTORY launch meshes worlds msg
+  DESTINATION share/${PROJECT_NAME}
 )
 
-# Depend on system install of Gazebo
-find_package(gazebo REQUIRED)
-
-include_directories(
-    #include 
-    ${catkin_INCLUDE_DIRS} 
-    ${GAZEBO_INCLUDE_DIRS} 
-    ${SDFormat_INCLUDE_DIRS}
+install(FILES model.config
+  DESTINATION share/${PROJECT_NAME}
 )
 
-# Build whatever you need here
-# add_library(...) # TODO
-
-catkin_package(
-    DEPENDS
-    gazebo_ros
-    CATKIN_DEPENDS
-    INCLUDE_DIRS
-    LIBRARIES
-)
+ament_package()
