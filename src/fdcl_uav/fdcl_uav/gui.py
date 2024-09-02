@@ -1,4 +1,4 @@
-from .matrix_utils import q_to_R
+from .matrix_utils import q_to_R, R_to_RPY
 from .freq_utils import Freq
 
 import numpy as np
@@ -54,7 +54,7 @@ class GuiNode(Node, QMainWindow):
 
         # Sensor measurements
         self.freq_imu = Freq("IMU", 100)
-        self.R_imu = np.zeros([3, 3])
+        self.R_imu = np.identity(3)
         self.a_imu = np.zeros([3, 1])
         self.W_imu = np.zeros([3, 1])
 
@@ -76,6 +76,8 @@ class GuiNode(Node, QMainWindow):
 
         self.g = 9.81
         self.ge3 = np.array([0.0, 0.0, self.g])
+
+        self.RAD2DEG = 180.0 / np.pi
 
         self.init_gui()
         self.init_subscribers()
@@ -165,7 +167,7 @@ class GuiNode(Node, QMainWindow):
         sensor_box = QHBoxLayout()
         sensor_box.setAlignment(Qt.AlignLeft)
         sensor_box.addSpacing(5)
-        [sensor_box, self.label_imu_ypr] = self.init_vbox(sensor_box, "IMU YPR", 4)
+        [sensor_box, self.label_imu_ypr] = self.init_vbox(sensor_box, "IMU RPY", 4)
         [sensor_box, self.label_imu_a] = self.init_vbox(sensor_box, "IMU a", 4)
         [sensor_box, self.label_imu_W] = self.init_vbox(sensor_box, "IMU W", 4)
         [sensor_box, self.label_gps_x] = self.init_vbox(sensor_box, "GPS x", 4)
@@ -282,8 +284,8 @@ class GuiNode(Node, QMainWindow):
         self.update_attitude_vbox(self.label_Rd, self.Rd)
         self.update_vbox(self.label_Wd, self.Wd)
 
-        # TODO
-        # self.update_vbox(self.label_imu_ypr, self.imu_ypr)
+        imu_ypr = R_to_RPY(self.R_imu) * self.RAD2DEG
+        self.update_vbox(self.label_imu_ypr, imu_ypr)
 
         self.update_vbox(self.label_imu_a, self.a_imu)
         self.update_vbox(self.label_imu_W, self.W_imu)
@@ -525,11 +527,13 @@ class GuiNode(Node, QMainWindow):
         q = np.array([q_gazebo.x, q_gazebo.y, q_gazebo.z, q_gazebo.w])
 
         R_gi = q_to_R(q) # IMU to Gazebo frame
-        R_fi = self.R_fg.dot(R_gi)  # IMU to FDCL frame (NED freme)
+        R_fi = self.R_fg @ R_gi  # IMU to FDCL frame (NED frame)
+
+        self.R_imu = R_fi
 
         # FDCL-UAV expects IMU accelerations without gravity.
         a_i = np.array([a_gazebo.x, a_gazebo.y, a_gazebo.z])
-        self.a_imu = R_gi.T.dot(R_gi.dot(a_i) - self.ge3)
+        self.a_imu = R_gi.T @ (R_gi @ a_i - self.ge3)
 
         self.W_imu = np.array([W_gazebo.x, W_gazebo.y, W_gazebo.z])
 

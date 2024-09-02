@@ -19,7 +19,6 @@ fdcl::Matrix3 fdcl::hat(const Vector3 v)
 
 fdcl::Vector3 fdcl::vee(const Matrix3 V)
 {
-    // TODO: improve code by: https://codereview.stackexchange.com/questions/77546/multiply-vector-elements-by-a-scalar-value-using-stl-and-templates
     Vector3 v;
     Matrix3 E;
 
@@ -29,12 +28,10 @@ fdcl::Vector3 fdcl::vee(const Matrix3 V)
     {
         std::cout << "vee: E.norm() = " << E.norm() << std::endl;
     }
-    //	else
-    //	{
+
     v(0) = V(2, 1);
     v(1) = V(0, 2);
     v(2) = V(1, 0);
-    //	}
 
     return  v;
 }
@@ -157,7 +154,7 @@ bool fdcl::assert_SO3(Matrix3 R, const char *R_name)
 }
 
 
-/* TODO: Write these as a template function, so they can accept diffrene type 
+/* TODO: Write these as a template function, so they can accept diffrent types
  * of data.
  */
 void fdcl::saturate(Vector3 &x, const double x_min, const double x_max)

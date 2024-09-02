@@ -140,14 +140,12 @@ class EstimatorNode(Node):
         self.W_pre = np.copy(self.W)
         self.b_a_pre = self.b_a * 1.0
 
-        # TODO: replace .dot with @
         self.W = self.R_bi @ W_imu
-        self.R = self.R.dot(expm_SO3(h / 2.0 * (self.W + self.W_pre)))
+        self.R = self.R @ expm_SO3(h / 2.0 * (self.W + self.W_pre))
 
         # This assumes IMU provide acceleration without g
-        self.a = self.R.dot(self.R_bi).dot(a_imu) + self.b_a * self.e3
-        a_pre = self.R_pre.dot(self.R_bi).dot(self.a_imu_pre) \
-            + self.b_a_pre * self.e3
+        self.a = self.R @ self.R_bi @ a_imu + self.b_a * self.e3
+        a_pre = self.R_pre @ self.R_bi @ self.a_imu_pre + self.b_a_pre * self.e3
 
         self.x = self.x + h * self.v + h**2 / 2.0 * a_pre
         self.v = self.v + h / 2.0 * (self.a + a_pre)
@@ -155,23 +153,23 @@ class EstimatorNode(Node):
         # Calculate A(t_{k-1})
         A = np.zeros((10, 10))
         A[0:3, 3:6] = self.eye3
-        A[3:6, 6:9] = - self.R_pre.dot(hat(self.R_bi.dot(self.a_imu_pre)))
+        A[3:6, 6:9] = - self.R_pre @ hat(self.R_bi @ self.a_imu_pre)
         A[3:6, 9] = self.e3
-        A[6:9, 6:9] = -hat(self.R_bi.dot(W_imu))
+        A[6:9, 6:9] = -hat(self.R_bi @ W_imu)
 
         # Calculate F(t_{k-1})
         F = np.zeros((10, 7))
-        F[3:6, 0:3] = self.R_pre.dot(self.R_bi)
+        F[3:6, 0:3] = self.R_pre @ self.R_bi
         F[6:9, 3:6] = self.R_bi
         F[9, 6] = 1.0
 
         # Calculate \Psi using A(t)
         psi = self.eye10 + h / 2.0 * A
 
-        A = self.eye10 + h * A.dot(psi)
-        F = h * psi.dot(F)
+        A = self.eye10 + h * A @ psi
+        F = h * psi @ F
 
-        self.P = A.dot(self.P).dot(A.T) + F.dot(self.Q).dot(F.T)
+        self.P = A @ self.P @ A.T + F @ self.Q @ F.T
 
         self.a_imu_pre = a_imu
         self.W_imu_pre = W_imu
@@ -202,17 +200,16 @@ class EstimatorNode(Node):
 
         V = V_R_imu
 
-        S = H.dot(self.P).dot(H_T) + G.dot(V).dot(G_T)
-        K = self.P.dot(H_T).dot(np.linalg.inv(S))
+        S = H @ self.P @ H_T + G @ V @ G_T
+        K = self.P @ H_T @ np.linalg.inv(S)
 
-        X = K.dot(del_z)
+        X = K @ del_z
 
         eta = X[6:9]
-        self.R = self.R.dot(expm_SO3(eta))
+        self.R = self.R @ expm_SO3(eta)
 
-        I_KH = self.eye10 - K.dot(H)
-        self.P = I_KH.dot(self.P).dot(I_KH.T) \
-            + K.dot(G).dot(V).dot(G_T).dot(K.T)
+        I_KH = self.eye10 - K @ H
+        self.P = I_KH @ self.P @ I_KH.T + K @ G @ V @ G_T @ K.T
 
 
     def gps_correction(self, x_gps, v_gps, V_x_gps, V_v_gps):
@@ -238,10 +235,10 @@ class EstimatorNode(Node):
             [self.zero3, V_v_gps]
         ])
 
-        S = H.dot(self.P).dot(H_T) + V
-        K = self.P.dot(H_T).dot(np.linalg.inv(S))
+        S = H @ self.P @ H_T + V
+        K = self.P @ H_T @ np.linalg.inv(S)
 
-        X = K.dot(del_z)
+        X = K @ del_z
 
         dx = X[0:3]
         dv = X[3:6]
@@ -251,8 +248,8 @@ class EstimatorNode(Node):
         self.v = self.v + dv
         self.b_a = self.b_a + db_a
 
-        I_KH = self.eye10 - K.dot(H)
-        self.P = I_KH.dot(self.P).dot(I_KH.T) + K.dot(V).dot(K.T)
+        I_KH = self.eye10 - K @ H
+        self.P = I_KH @ self.P @ I_KH.T + K @ V @ K.T
 
     
     def get_dt(self):
