@@ -8,4 +8,6 @@ docker run \
     --privileged \
     -it uav_simulator bash
 
-#  docker start --interactive uav-simulator-container
+# For debugging: once the container is first run with the above command, you 
+# can run the following command for the second and subsequent runs.
+# docker start --interactive uav-simulator-container

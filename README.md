@@ -95,11 +95,8 @@ If you want to install everything locally, follow [Local Install](#local-install
 If you want to run a docker container instead, skip to [Docker Setup](#docker-setup).
 
 #### Local Install
-1. [ROS](http://wiki.ros.org/): this repository has been developed using ROS Noetic, on Ubuntu 20.04. If you are on ROS Melodic with Ubuntu 18.04, please checkout `ros-melodic` branch before installing dependencies.
-1. Python GTK libraries for GUI (not required if you opt to not to use the GUI)
-    ```sh
-    sudo apt-get install python3-pip python3-gi
-    ```
+1. [ROS2](http://wiki.ros.org/): this repository has been developed using ROS2 Iron, on Ubuntu 22.04. If you are on a different version of Ubunto or ROS, please check the previous releases before installing dependencies. We recommend installing the ROS2 full version.
+
 1. Python modules: these libraries must be installed in the system
     1. NumPy
     1. Pandas
@@ -127,7 +124,7 @@ The first time you run the build command will take a while as it installs all th
 You can skip the build command altogether by pulling the built docker from the Docker Hub with the following command.
 This is NOT required if you are building it locally using the build command.
 ```sh
-docker pull kanishgama/uav_simulator:ros-noetic
+docker pull kanishgama/uav_simulator:ros2-iron
 bash docker_run.sh
 ```
 
@@ -156,26 +153,33 @@ You only need to do the followings once (unless you change the Gazebo plugins)
     # From uav_simulator
     ros2 launch uav_gazebo uav_gazebo.launch.py 
     ```
-1. Once the Gazebo is launched, run the rover code from a different rover terminal (if you already don't know, you may find [**tmux**](https://github.com/tmux/tmux/wiki) a life-saver):
+1. Once the Gazebo is launched, run the UAV code from a different terminal (if you already don't know, you may find [**tmux**](https://github.com/tmux/tmux/wiki) a life-saver):
     ```sh
-    # From uav_simulator/scripts
-    python3 main.py
+    # From uav_simulator/src/fdcl_uav/launch
+    ros2 launch fdcl_uav_launch.py
     ```
-    If you change the Python code, simply re-run the Python code.
-    The code has been tested with Python3.8.10, which comes default with Ubuntu 20.04.
+
+    If you change the Python code, run the following command
+    ```sh
+    # From uav_simulator
+    colcon build --packages-select fdcl_uav
+    ```
+    Then, re-run the above launch command.
+
+    The code has been tested with Python3.10.12, which comes default with Ubuntu 22.04.
 
 ![Terminal](images/running.gif)
 
 ### Tips
 1. Every time you change the simulation environment, you have to kill the program, `catkin_make` and re-run it. 
 1. If you do not make any changes to the simulation environment, you only need to kill the Python program. 
-1. The UAV will re-spawn at the position and orientation defined in `reset_uav()` in `rover.py` when you run the Python code.
+<!-- 1. The UAV will re-spawn at the position and orientation defined in `reset_uav()` in `rover.py` when you run the Python code. -->
 
 ## Control Guide
 * Simply click on the buttons on the GUI to control the UAV.
 * You can easily switch between each trajectory mode simply clicking on the radio buttons.
 * Stay mode simply commands the UAV to stay at the current position.
-* When take-off, stay, and circle trajectories end, the UAV switched to the "manual" mode.
+* When take-off, stay, and circle trajectories end, the UAV switches to the "manual" mode.
 * When the UAV is in manual, you can use following keys (these are not case sensitive):
   * `WASD`: to move in horizontal plane
   * `P`: increase altitude
@@ -194,13 +198,4 @@ You only need to do the followings once (unless you change the Gazebo plugins)
 * Unit tests have only been tested on Python 3.9.
 * Currently, unit test only covers the `matrix_utils.py` module. 
 
-`export GAZEBO_PLUGIN_PATH=/home/kani/Documents/uav_simulator/build:$GAZEBO_PLUGIN_PATH`
-
-
-```
-# Building fdcl_uav
-colcon build --packages-select fdcl_uav
-
-# Running fdcl_uav
-cd src/fdcl_uav/launch
-ros2 launch fdcl_uav_launch.py
+<!-- `export GAZEBO_PLUGIN_PATH=/home/kani/Documents/uav_simulator/build:$GAZEBO_PLUGIN_PATH` -->

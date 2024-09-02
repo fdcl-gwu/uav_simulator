@@ -346,7 +346,10 @@ class GuiNode(Node, QMainWindow):
 
     def update_vbox(self, labels, data, data_size=3):
         for i in range(data_size):
-            labels[i + 1].setText("{:>5.2f}".format(data[i]))
+            try:
+                labels[i + 1].setText("{:>5.2f}".format(data[i]))
+            except TypeError:
+                labels[i + 1].setText("{:>5.2f}".format(-1))
 
     
     def update_attitude_vbox(self, labels, data):
