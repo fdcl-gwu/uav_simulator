@@ -53,7 +53,7 @@ def q_to_R(q):
     q4 = q[3]
 
     hat_q = hat(q13)
-    R += 2.0 * q4 * hat_q + 2.0 * hat_q.dot(hat_q)
+    R += 2.0 * q4 * hat_q + 2.0 * hat_q @ hat_q
 
     return R
 
@@ -123,8 +123,7 @@ def deriv_unit_vector(A, A_dot, A_2dot):
     A_A_dot = A.dot(A_dot)
 
     q = A / nA
-    q_dot = A_dot / nA \
-        - A.dot(A_A_dot) / nA3
+    q_dot = A_dot / nA - A.dot(A_A_dot) / nA3
 
     q_2dot = A_2dot / nA \
         - A_dot.dot(2.0 * A_A_dot) / nA3 \

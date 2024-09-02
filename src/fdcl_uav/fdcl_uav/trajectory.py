@@ -226,7 +226,7 @@ class TrajectoryNode(Node):
 
     
     def get_current_b1(self):
-        b1 = self.R.dot(self.e1)
+        b1 = self.R @ self.e1
         theta = np.arctan2(b1[1], b1[0])
         return np.array([np.cos(theta), np.sin(theta), 0.0])
 
