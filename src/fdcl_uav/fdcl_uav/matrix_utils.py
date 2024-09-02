@@ -58,6 +58,42 @@ def q_to_R(q):
     return R
 
 
+def R_to_RPY(R):
+    """Converts a rotation matrix to Euler angles.
+
+    Args:
+        R: (3x3 numpy array) rotation matrix
+
+    Returns:
+        (3x1 numpy array) Euler angles in [roll, pitch, yaw] format
+    """
+    threshold = 0.999999999999999
+    if np.abs(R[2, 0]) > threshold:       
+        sign_pitch = -np.sign(R[2, 0])
+        pitch = sign_pitch * np.pi/2
+
+        # Set yaw to 0
+        yaw = 0
+
+        roll = np.arctan2(R[0, 1] * sign_pitch, R[0, 2] * sign_pitch)
+
+        return np.array((roll, pitch, yaw))
+    
+    else:
+        pitch = np.arcsin(-R[2, 0])
+        cos_pitch = np.cos(pitch)
+        
+        sin_roll = R[2, 1] / cos_pitch
+        cos_roll = R[2, 2] / cos_pitch
+        roll = np.pi - np.arctan2(sin_roll, cos_roll)
+
+        sin_yaw = R[1, 0] / cos_pitch
+        cos_yaw = R[0, 0] / cos_pitch
+        yaw = np.arctan2(sin_yaw, cos_yaw)
+
+        return np.array((roll,pitch,yaw))
+    
+
 def deriv_unit_vector(A, A_dot, A_2dot):
     """Returns the unit vector and it's derivatives for a given vector.
 
