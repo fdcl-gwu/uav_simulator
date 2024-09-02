@@ -153,12 +153,14 @@ class TrajectoryNode(Node):
             self.mark_traj_start()
         elif self.mode == 2:  # take-off
             self.takeoff()
-        elif self.mode == 3:  # land
-            self.land()
-        elif self.mode == 4:  # stay
+        elif self.mode == 3:  # stay
             self.stay()
-        elif self.mode == 5:  # circle
+        elif self.mode == 4:  # circle
             self.circle()
+        elif self.mode == 5:  # land
+            self.land()
+        else:
+            self.get_logger().info('Undefined mode {}'.format(self.mode))
 
 
     def mark_traj_start(self):

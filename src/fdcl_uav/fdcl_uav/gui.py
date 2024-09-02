@@ -127,7 +127,6 @@ class GuiNode(Node, QMainWindow):
                 QRadioButton("Warmup"), \
                 QRadioButton("Take-off"), \
                 QRadioButton("Stay"), \
-                QRadioButton("Manual"), \
                 QRadioButton("Circle"), \
                 QRadioButton("Land") \
             ]
@@ -353,7 +352,7 @@ class GuiNode(Node, QMainWindow):
 
         self.get_logger().info('Turning motors off')
         self.motor_on = False
-        
+
         msg = Bool()
         msg.data = self.motor_on
         self.pub_motors_on.publish(msg)
