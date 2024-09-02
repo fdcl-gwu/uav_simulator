@@ -155,14 +155,14 @@ You only need to do the followings once (unless you change the Gazebo plugins)
 1. Once the Gazebo is launched, run the UAV code from a different terminal (if you already don't know, you may find [**tmux**](https://github.com/tmux/tmux/wiki) a life-saver):
     ```sh
     # From uav_simulator
-    ros2 launch uav_gazebo uav_gazebo.launch.py
+    ros2 launch fdcl_uav fdcl_uav_launch.py
     ```
 
     Everytime you change the Python code, run the following commands
     ```sh
     # From uav_simulator
     colcon build --packages-select fdcl_uav
-    ros2 launch uav_gazebo uav_gazebo.launch.py
+    ros2 launch fdcl_uav fdcl_uav_launch.py
     ```
     The code has been tested with Python3.10.12, which comes default with Ubuntu 22.04.
 
