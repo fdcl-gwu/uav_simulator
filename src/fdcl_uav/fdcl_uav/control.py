@@ -10,7 +10,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import Vector3, WrenchStamped
 from std_msgs.msg import Int32, Bool
 
-from uav_gazebo.msg import DesiredData, ErrorData, StateData
+from uav_gazebo.msg import DesiredData, ErrorData, ModeData, StateData
 
 
 class ControlNode(Node):
@@ -528,7 +528,7 @@ class ControlNode(Node):
             1)
         
         self.sub_mode = self.create_subscription( \
-            Int32,
+            ModeData,
             '/uav/mode',
             self.mode_callback,
             1)
@@ -542,7 +542,10 @@ class ControlNode(Node):
     
 
     def mode_callback(self, msg):
-        self.mode = msg.data
+        if self.mode == msg.mode:
+            return
+        
+        self.mode = msg.mode
         self.get_logger().info('Mode switched to {}'.format(self.mode))
 
     

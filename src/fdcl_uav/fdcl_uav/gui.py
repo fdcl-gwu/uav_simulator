@@ -14,9 +14,9 @@ from rclpy.node import Node
 from geometry_msgs.msg import WrenchStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
-from std_msgs.msg import Int32, Bool
+from std_msgs.msg import Bool
 
-from uav_gazebo.msg import StateData, DesiredData, ErrorData
+from uav_gazebo.msg import DesiredData, ErrorData, ModeData, StateData
 
 
 class GuiNode(Node, QMainWindow):
@@ -71,6 +71,8 @@ class GuiNode(Node, QMainWindow):
         self.x_offset_delta = 0.1
         self.yaw_offset = 0.0
         self.yaw_offset_delta = 0.02
+
+        self.mode = 0
 
         self.g = 9.81
         self.ge3 = np.array([0.0, 0.0, self.g])
@@ -255,7 +257,7 @@ class GuiNode(Node, QMainWindow):
 
 
     def init_publishers(self):
-        self.pub_mode = self.create_publisher(Int32, '/uav/mode', 1) 
+        self.pub_mode = self.create_publisher(ModeData, '/uav/mode', 1) 
         self.pub_motors_on = self.create_publisher(Bool, '/uav/motors_on', 1) 
     
     
@@ -294,6 +296,12 @@ class GuiNode(Node, QMainWindow):
         self.update_vbox(self.label_fM, self.fM, data_size=4)
         # self.update_vbox(self.label_f, self.f)
         # self.update_vbox(self.label_thr, self.thr)
+
+        msg = ModeData()
+        msg.mode = self.mode
+        msg.x_offset = self.x_offset
+        msg.yaw_offset = self.yaw_offset
+        self.pub_mode.publish(msg)
 
 
     def init_vbox(self, box, name, num):
@@ -379,13 +387,14 @@ class GuiNode(Node, QMainWindow):
 
 
     def on_flight_mode_changed(self):
-        pass
         for i in range(len(self.radio_button_modes)):
             if self.radio_button_modes[i].isChecked():
                 self.get_logger().info('Mode switched to {}'.format(i))
+
+                self.mode = i
                 
-                msg = Int32()
-                msg.data = i
+                msg = ModeData()
+                msg.mode = self.mode
                 self.pub_mode.publish(msg)
 
                 self.x_offset = np.zeros(3)

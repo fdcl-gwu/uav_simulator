@@ -13,6 +13,7 @@ xacro_add_files("urdf/uav.urdf.xacro" INSTALL DESTINATION urdf/)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DesiredData.msg"
   "msg/ErrorData.msg"
+  "msg/ModeData.msg"
   "msg/StateData.msg"
   DEPENDENCIES std_msgs
  )

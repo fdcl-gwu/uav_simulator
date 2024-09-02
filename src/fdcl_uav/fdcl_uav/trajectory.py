@@ -4,9 +4,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import Int32
-
-from uav_gazebo.msg import StateData, DesiredData
+from uav_gazebo.msg import DesiredData, ModeData, StateData
 
 class TrajectoryNode(Node):
 
@@ -86,7 +84,7 @@ class TrajectoryNode(Node):
             1)
         
         self.sub_mode = self.create_subscription( \
-            Int32,
+            ModeData,
             '/uav/mode',
             self.mode_callback,
             1)
@@ -116,11 +114,15 @@ class TrajectoryNode(Node):
 
     
     def mode_callback(self, msg):
-        self.mode = msg.data
-        self.get_logger().info('Mode switched to {}'.format(self.mode))
+        
+        self.x_offset = msg.x_offset
+        self.yaw_offset = msg.yaw_offset
 
-        self.is_mode_changed = True
-        self.mark_traj_start()
+        if self.mode != msg.mode:
+            self.mode = msg.mode
+            self.is_mode_changed = True
+            self.mark_traj_start()
+            self.get_logger().info('Mode switched to {}'.format(self.mode))
 
 
     def publish_trajectory(self):
