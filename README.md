@@ -1,6 +1,6 @@
 |![TravisCI](https://img.shields.io/badge/travis%20ci-%232B2F33.svg?style=for-the-badge&logo=travis&logoColor=white) | ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)|
 |-|-|
-|[![Build Status](https://app.travis-ci.com/fdcl-gwu/uav_simulator.svg?branch=main)](https://app.travis-ci.com/fdcl-gwu/uav_simulator) | [tag:ros-noetic](https://hub.docker.com/layers/kanishgama/uav_simulator/ros-noetic/images/sha256-84b08eedc786c7d9ff06282816560876bb384ec52e0a7da9739e5cbd749e4d0b?context=repo) |
+|[![Build Status](https://app.travis-ci.com/fdcl-gwu/uav_simulator.svg?branch=main)](https://app.travis-ci.com/fdcl-gwu/uav_simulator) | [tag:ros2-iron](https://hub.docker.com/layers/kanishgama/uav_simulator/ros2-iron/images/sha256-a18af779d63b68b9d6c3b7c522274f629c28e5de9da088285ce2ea7f12ee2d3c?context=repo) |
 
 # Python - Gazebo Simulation Environment for a UAV with Geometric Control
 
@@ -10,16 +10,14 @@ This repository includes Python codes for the position control a UAV in a Gazebo
 * Developed using Python
 * Uses a geometric controller that works great with aggressive maneuvers
 * Uses Gazebo as the physics engine
-* Uses only minimal Gazebo/ROS codes so that if something breaks on ROS end in the future, it is easier to fix
 * Has a nice GUI for controlling the UAV
-* Can run your experiments, log data, and plot at the end of the trajectory at a click of a button
-* Estimator, controller, and trajectory generators are in their own Python classes, if you need to test your own estimator, controller, or a trajectory, you only need to modify the respective class
+* Estimator, controller, and trajectory generators are in their own ROS nodes. If you need to test your own estimator, controller, or a trajectory, you only need to modify the respective node.
 
 ![Landing](images/trajectory.gif)
 
 ### Why Python?
 * Python makes developing/debugging easier and shorter (no compiling)
-* Can easily find modules or libraries for different tasks
+* Can easily find open-source modules or libraries for different tasks
 
 ## Which controller is used for the UAV control?
 * A geometric controller with decoupled-yaw attitude control is used
@@ -36,13 +34,10 @@ This repository includes Python codes for the position control a UAV in a Gazebo
     ```
 * Implementation of the same controller in C++ and Matlab can be found at [https://github.com/fdcl-gwu/uav_geometric_control](https://github.com/fdcl-gwu/uav_geometric_control)
 
-### How to test my own controller?
-* Make sure the desired trajectory generates the desired states required by your controller.
-* Simply update the `Controller` class with your controller.
-* Make sure your modified controller class outputs the variable force-moment vector (`fM`).
+
 
 ## Which estimator is used for the state estimation?
-* The estimator defined in the following paper is implemented here (except the sensor bias estimation terms):
+* The estimator defined in the following paper is implemented here (except for the sensor bias estimation terms):
     ```sh
     @InProceedings{Gamagedara2019a,
         author    = {Kanishke Gamagedara and Taeyoung Lee and Murray R. Snyder},
@@ -57,18 +52,22 @@ This repository includes Python codes for the position control a UAV in a Gazebo
 * Matlab implementation of the above controller can be found at [https://github.com/fdcl-gwu/dkf-comparison](https://github.com/fdcl-gwu/dkf-comparison).
 * Note that the Matlab implementation has a delayed Kalman filter that has not been implemented here. Only the non-delayed parts inside `DelayedKalmanFilter.m` is utilized here.
 
-### How to test my own estimator?
-* Make sure your estimator provides the states for the UAV control, or if not create a separate estimator using the current estimator as the base class.
-* Update the `Estimator` class with your estimator.
 
-### How to test my own trajectory?
-* Add your trajectory generation function in `Trajectory` class.
-* Replace that with an unused mode in the `calculate_desired` function inside the `Trajectory` class.
 
 ## Setting-up
 
+### Releases
+
+The current `main` branch has been tested to work on Ubuntu 22.04, running ROS2-Iron. Check [releases](https://github.com/fdcl-gwu/uav_simulator/releases) for different OS/ROS versions.
+1. [v1.0](https://github.com/fdcl-gwu/uav_simulator/tree/v1.0): Ubuntu 18.04 with ROS-Melodic
+1. [v2.0](https://github.com/fdcl-gwu/uav_simulator/tree/v2.0): Ubuntu 20.04 with ROS-Noetic
+1. [v3.0](https://github.com/fdcl-gwu/uav_simulator/tree/v3.0): Ubuntu 22.04 with ROS2-Iron
+
+:bangbang: If you are trying to use an older release, please checkout that release, and use setup instructions there.
+Each release has different instructions.
+
 :bangbang: If you are running this on a virtual machine, please make sure that Gazebo can run at real-time speed.
-It is known that this simulation exhibits unintended behavior if the "real-time factor" of the Gazebo simulation is not closer to 1.0 (See [issue#3](https://github.com/fdcl-gwu/uav_simulator/issues/3)).
+It is known that this simulation exhibits unintended behavior if the "real-time factor" of the Gazebo simulation is not closer to 1.0 (See [issue #3](https://github.com/fdcl-gwu/uav_simulator/issues/3)).
 
 ### Setting-up the repository
 1. Clone the repository.
@@ -87,7 +86,7 @@ You have to options here:
 1. Installing everything locally
 1. Running a docker container
 
-Installing everything locally is probably the fastest way, but you may have to instal dependencies manually, or may have to deal with package version changes. 
+Installing everything locally is probably the most straight-forward way, but you have to instal dependencies manually, or may have to deal with package version changes. 
 Docker solves this by streamlining all the dependencies, up-to the OS.
 For example, if you are on Ubuntu 22.04 and want to test the ROS-Melodic version, docker will be the only way.
 
@@ -115,7 +114,7 @@ This has not been tested on other OS versions.
 1. Install docker following [official instructions](https://docs.docker.com/engine/install/ubuntu/).
 1. If you are not already there, `cd uav_simulator`
 1. Enable xhost (required for Gazebo and GUI): `xhost +`
-1. Build the docker image: `docker build -t uav_simulator .` (see following paragraph if you just want to pull the built image instead)
+1. Build the docker image: `docker build -t uav_simulator .` (see following paragraph if you just want to pull the already built image instead)
 1. Run a container: `bash docker_run.sh`
 
 The last command will start a docker container, install all the dependencies, and mount the local directory there.
@@ -155,23 +154,23 @@ You only need to do the followings once (unless you change the Gazebo plugins)
     ```
 1. Once the Gazebo is launched, run the UAV code from a different terminal (if you already don't know, you may find [**tmux**](https://github.com/tmux/tmux/wiki) a life-saver):
     ```sh
-    # From uav_simulator/src/fdcl_uav/launch
-    ros2 launch fdcl_uav_launch.py
+    # From uav_simulator
+    ros2 launch uav_gazebo uav_gazebo.launch.py
     ```
 
-    If you change the Python code, run the following command
+    Everytime you change the Python code, run the following commands
     ```sh
     # From uav_simulator
     colcon build --packages-select fdcl_uav
+    ros2 launch uav_gazebo uav_gazebo.launch.py
     ```
-    Then, re-run the above launch command.
-
     The code has been tested with Python3.10.12, which comes default with Ubuntu 22.04.
+
 
 ![Terminal](images/running.gif)
 
 ### Tips
-1. Every time you change the simulation environment, you have to kill the program, `catkin_make` and re-run it. 
+1. Every time you change the simulation environment, you have to kill the program, `colcon build` and re-run it. 
 1. If you do not make any changes to the simulation environment, you only need to kill the Python program. 
 <!-- 1. The UAV will re-spawn at the position and orientation defined in `reset_uav()` in `rover.py` when you run the Python code. -->
 
